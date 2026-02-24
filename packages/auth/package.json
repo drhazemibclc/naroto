@@ -1,0 +1,24 @@
+{
+  "name": "@naroto/auth",
+  "type": "module",
+  "exports": {
+    ".": {
+      "default": "./src/index.ts"
+    },
+    "./*": {
+      "default": "./src/*.ts"
+    }
+  },
+  "scripts": {},
+  "dependencies": {
+    "@naroto/db": "workspace:*",
+    "@naroto/env": "workspace:*",
+    "better-auth": "catalog:",
+    "dotenv": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@naroto/config": "workspace:*",
+    "typescript": "catalog:"
+  }
+}

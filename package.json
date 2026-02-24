@@ -1,0 +1,45 @@
+{
+  "name": "naroto",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "type": "module",
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "check-types": "turbo check-types",
+    "dev:native": "turbo -F native dev",
+    "dev:web": "turbo -F web dev",
+    "db:push": "turbo -F @naroto/db db:push",
+    "db:studio": "turbo -F @naroto/db db:studio",
+    "db:generate": "turbo -F @naroto/db db:generate",
+    "db:migrate": "turbo -F @naroto/db db:migrate",
+    "check": "ultracite check",
+    "fix": "ultracite fix",
+    "prepare": "husky"
+  },
+  "dependencies": {
+    "@naroto/env": "workspace:*",
+    "dotenv": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.4.0",
+    "@naroto/config": "workspace:*",
+    "@types/node": "^22.13.14",
+    "husky": "latest",
+    "lefthook": "latest",
+    "lint-staged": "latest",
+    "turbo": "^2.6.3",
+    "typescript": "catalog:",
+    "ultracite": "7.2.3"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx,json,jsonc,css,scss,md,mdx}": [
+      "pnpm dlx ultracite fix"
+    ]
+  },
+  "packageManager": "pnpm@10.30.1"
+}

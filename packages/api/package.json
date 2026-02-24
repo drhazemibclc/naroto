@@ -1,0 +1,28 @@
+{
+  "name": "@naroto/api",
+  "type": "module",
+  "exports": {
+    ".": {
+      "default": "./src/index.ts"
+    },
+    "./*": {
+      "default": "./src/*.ts"
+    }
+  },
+  "scripts": {},
+  "dependencies": {
+    "@naroto/auth": "workspace:*",
+    "@naroto/db": "workspace:*",
+    "@naroto/env": "workspace:*",
+    "@prisma/client": "catalog:",
+    "@trpc/client": "catalog:",
+    "@trpc/server": "catalog:",
+    "dotenv": "catalog:",
+    "next": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@naroto/config": "workspace:*",
+    "typescript": "catalog:"
+  }
+}
