@@ -1008,13 +1008,7 @@ export class AdminService {
     const validated = statusChangeSchema.parse(input);
 
     try {
-      const staff = await staffRepo.updateStaffStatus(
-        this.db,
-        validated.id,
-        validated.clinicId,
-        validated.status,
-        validated.reason
-      );
+      const staff = await staffRepo.updateStaffStatus(this.db, validated.id, validated.clinicId, validated.status);
 
       // Invalidate cache
       if (this.CACHE_ENABLED) {

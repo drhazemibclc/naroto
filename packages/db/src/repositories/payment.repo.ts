@@ -63,7 +63,7 @@ export async function findPaymentsByPatient(
   options?: {
     limit?: number;
     offset?: number;
-    status?: 'PAID' | 'UNPAID' | 'REFUNDED' | 'PENDING';
+    status?: 'PAID' | 'UNPAID' | 'REFUNDED' | 'PARTIAL';
     fromDate?: Date;
     toDate?: Date;
   }
@@ -106,7 +106,7 @@ export async function findPaymentsPaginated(
     search?: string;
     skip: number;
     take: number;
-    status?: 'PAID' | 'UNPAID' | 'REFUNDED' | 'PENDING';
+    status?: 'PAID' | 'UNPAID' | 'REFUNDED' | 'PARTIAL';
     fromDate?: Date;
     toDate?: Date;
   }
@@ -235,7 +235,7 @@ export async function findPaymentsInRange(
 export async function countPaymentsByStatus(
   db: PrismaClient | Prisma.TransactionClient,
   clinicId: string,
-  status: 'PAID' | 'UNPAID' | 'REFUNDED' | 'PENDING'
+  status: 'PAID' | 'UNPAID' | 'REFUNDED' | 'PARTIAL'
 ) {
   return db.payment.count({
     where: {
@@ -315,7 +315,7 @@ export async function createPayment(
     discount: number;
     amountPaid: number;
     totalAmount: number;
-    status?: 'PAID' | 'UNPAID' | 'REFUNDED' | 'PENDING';
+    status?: 'PAID' | 'UNPAID' | 'REFUNDED' | 'PARTIAL';
     createdAt: Date;
     updatedAt: Date;
   }
@@ -337,7 +337,7 @@ export async function updatePayment(
     discount: number;
     amountPaid: number;
     totalAmount: number;
-    status: 'PAID' | 'UNPAID' | 'REFUNDED' | 'PENDING';
+    status: 'PAID' | 'UNPAID' | 'REFUNDED' | 'PARTIAL';
     updatedAt: Date;
   }>
 ) {
@@ -350,7 +350,7 @@ export async function updatePayment(
 export async function updatePaymentStatus(
   db: PrismaClient | Prisma.TransactionClient,
   id: string,
-  data: { status: 'REFUNDED' | 'PAID' | 'UNPAID' | 'PENDING'; updatedAt: Date }
+  data: { status: 'REFUNDED' | 'PAID' | 'UNPAID' | 'PARTIAL'; updatedAt: Date }
 ) {
   return db.payment.update({
     where: { id },
