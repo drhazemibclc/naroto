@@ -1,45 +1,64 @@
 {
-  "name": "naroto",
-  "private": true,
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
-  "type": "module",
-  "scripts": {
-    "dev": "turbo dev",
-    "build": "turbo build",
-    "check-types": "turbo check-types",
-    "dev:native": "turbo -F native dev",
-    "dev:web": "turbo -F web dev",
-    "db:push": "turbo -F @naroto/db db:push",
-    "db:studio": "turbo -F @naroto/db db:studio",
-    "db:generate": "turbo -F @naroto/db db:generate",
-    "db:migrate": "turbo -F @naroto/db db:migrate",
-    "check": "ultracite check",
-    "fix": "ultracite fix",
-    "prepare": "husky"
-  },
   "dependencies": {
     "@naroto/env": "workspace:*",
     "dotenv": "catalog:",
+    "express-session": "^1.19.0",
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.4.0",
+    "@biomejs/biome": "2.4.4",
     "@naroto/config": "workspace:*",
-    "@types/node": "^22.13.14",
+    "@types/express-session": "^1.18.2",
+    "@types/node": "^25.3.0",
     "husky": "latest",
     "lefthook": "latest",
     "lint-staged": "latest",
-    "turbo": "^2.6.3",
+    "turbo": "^2.8.11",
     "typescript": "catalog:",
     "ultracite": "7.2.3"
   },
   "lint-staged": {
-    "*.{js,jsx,ts,tsx,json,jsonc,css,scss,md,mdx}": [
-      "pnpm dlx ultracite fix"
+    "*.{js,jsx,ts,tsx,json}": [
+      "biome check --write --no-errors-on-unmatched --files-ignore-unknown=true",
+      "ultracite fix"
+    ],
+    "package.json": [
+      "pnpm dlx sherif@latest -f"
     ]
   },
-  "packageManager": "pnpm@10.30.1"
+  "name": "naroto",
+  "packageManager": "pnpm@10.30.2",
+  "private": true,
+  "scripts": {
+    "build": "turbo build",
+    "bump-deps": "pnpm dlx -npm-check-updates --deep -u -x geist && pnpm install",
+    "bump-ui": "pnpm dlx shadcn@canary add --all --overwrite -c packages/ui",
+    "check": "biome check --write",
+    "check-types": "turbo check-types",
+    "clean": "rm -rf .turbo node_modules && find . -name 'dist' -type d -prune -exec rm -rf {} + && find . -name 'tsconfig.tsbuildinfo' -delete",
+    "clean:all": "find . -type d -name 'node_modules' -prune -o -name 'generated' -o -name '.turbo' -o -name '.next' -o -name 'migrations' -o -name 'generated' | xargs rm -rf",
+    "db:generate": "turbo -F @naroto/db db:generate",
+    "db:migrate": "turbo -F @naroto/db db:migrate",
+    "db:push": "turbo -F @naroto/db db:push",
+    "db:reset": "turbo -F @naroto/db db:reset",
+    "db:seed": "turbo -F @naroto/db db:seed",
+    "db:studio": "turbo -F @naroto/db db:studio",
+    "dev": "turbo dev",
+    "dev:native": "turbo -F native dev",
+    "dev:web": "turbo -F web dev",
+    "fix": "ultracite fix",
+    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
+    "generate": "turbo run generate",
+    "lint:ws": "pnpm x --pnpm sherif@latest -f ",
+    "prepare": "husky",
+    "rebuild": "pnpm run clean && pnpm install && pnpm run db:generate && NODE_OPTIONS='--max-old-space-size=8192' pnpm turbo build --filter=@naroto/db",
+    "typecheck": "turbo typecheck",
+    "ultra-check": "ultracite check",
+    "ultra-fix": "ultracite fix"
+  },
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ]
 }

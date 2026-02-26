@@ -3,9 +3,14 @@
   "compilerOptions": {
     "declaration": true,
     "declarationMap": true,
-    "sourceMap": true,
+    "sourceMap": false,
     "outDir": "dist",
+    "rootDir": "src",
     "composite": true,
+    "incremental": true,
+    "tsBuildInfoFile": "./dist/.tsbuildinfo",
     "strictNullChecks": true
-  }
+  },
+  "include": ["src", "../../apps/web/src/actions"],
+  "exclude": ["node_modules", "dist"]
 }

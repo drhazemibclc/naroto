@@ -1,0 +1,15 @@
+graph TD
+    A[apps/web] --> B[packages/api]
+    A --> C[packages/auth]
+    A --> D[packages/env]
+    A --> E[packages/logger]
+    
+    B --> F[packages/db]
+    B --> G[packages/redis]
+    B --> H[packages/config]
+    
+    C --> F
+    C --> D
+    
+    F --> I[Prisma Client]
+    G --> J[ioredis]

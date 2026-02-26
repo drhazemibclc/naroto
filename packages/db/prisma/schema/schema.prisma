@@ -1,9 +1,109 @@
 generator client {
-  provider = "prisma-client"
-  output   = "../generated"
-  moduleFormat = "esm"
+  provider        = "prisma-client"
+  output          = "../../generated"
+  moduleFormat    = "esm"
+  runtime         = "nodejs"
+  previewFeatures = ["views", "relationJoins"]
+  // other optional fields:
+  // generatedFileExtension = "ts"
+  // importFileExtension    = "ts"
 }
 
 datasource db {
   provider = "postgresql"
 }
+
+generator server {
+  provider          = "prisma-generator-typescript-interfaces"
+  output            = "../../src/types.ts"
+  modelType         = "type"
+  // Better for tRPC inference
+  enumType          = "object"
+  // Matches Prisma Client behavior
+  relations         = "optional"
+  // Flexible querying
+  counts            = "optional"
+  // Include when needed
+  dateType          = "Date"
+  // JSON-safe dates
+  jsonType          = "Record<string, unknown>"
+  bigIntType        = "string"
+  // JSON-safe BigInt
+  decimalType       = "Decimal"
+  // JSON-safe Decimal
+  bytesType         = "Buffer"
+  optionalNullables = true
+  // Cleaner types
+  optionalDefaults  = true
+  // Less verbose
+  includeComments   = true
+  // Preserve schema docs
+  // Export control
+  exportEnums       = true
+}
+
+// generator zod {
+//   provider = "zod-prisma-types"
+//   output   = "../../generated/zod"
+
+//   // Structure
+//   useMultipleFiles = true
+//   writeBarrelFiles = true
+
+//   // Core types only
+//   createModelTypes = true
+//   createInputTypes = true
+
+//   // Keep validation light
+//   addInputTypeValidation = false
+//   useDefaultValidators   = true
+
+//   // Avoid extra helper types unless you really need them
+//   addIncludeType                   = false
+//   addSelectType                    = false
+//   createOptionalDefaultValuesTypes = false
+//   createRelationValuesTypes        = false
+//   createPartialTypes               = false
+//   validateWhereUniqueInput         = false
+
+//   // Pragmatic runtime behavior
+//   useDecimalJs             = true
+//   coerceDate               = true
+//   writeNullishInModelTypes = false
+//   useTypeAssertions        = true
+// }
+
+// generator json {
+//   provider = "prisma-json-types-generator"
+// }
+
+// // // // generator zod {
+// // // //   provider = "zod-prisma-types"
+// // // //   output   = "../../generated/zod"
+
+// // // //   // Structure
+// // // //   useMultipleFiles = true
+// // // //   writeBarrelFiles = true
+
+// // // //   // Core types only
+// // // //   createModelTypes = true
+// // // //   createInputTypes = true
+
+// // // //   // Keep validation light
+// // // //   addInputTypeValidation = false
+// // // //   useDefaultValidators   = true
+
+// // // //   // Avoid extra helper types unless you really need them
+// // // //   addIncludeType                   = false
+// // // //   addSelectType                    = false
+// // // //   createOptionalDefaultValuesTypes = false
+// // // //   createRelationValuesTypes        = false
+// // // //   createPartialTypes               = false
+// // // //   validateWhereUniqueInput         = false
+
+// // // //   // Pragmatic runtime behavior
+// // // //   useDecimalJs             = true
+// // // //   coerceDate               = true
+// // // //   writeNullishInModelTypes = false
+// // // //   useTypeAssertions        = true
+// // // // }

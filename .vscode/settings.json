@@ -1,53 +1,208 @@
 {
-  "editor.defaultFormatter": "esbenp.prettier-vscode",
-  "typescript.tsdk": "node_modules/typescript/lib",
-  "editor.formatOnSave": true,
-  "editor.formatOnPaste": true,
-  "emmet.showExpandedAbbreviation": "never",
+  "[css]": {
+    "editor.defaultFormatter": "biomejs.biome",
+    "editor.suggest.insertMode": "replace"
+  },
+  "[html]": {
+    "editor.defaultFormatter": "biomejs.biome",
+    "editor.quickSuggestions": {
+      "comments": true,
+      "other": true,
+      "strings": true
+    },
+    "editor.tabSize": 2
+  },
+  // Language-specific overrides
   "[javascript]": {
+    "editor.defaultFormatter": "biomejs.biome",
+    "editor.tabSize": 2
+  },
+  "[javascriptreact]": {
+    "editor.defaultFormatter": "biomejs.biome",
+    "editor.tabSize": 2
+  },
+  "[json]": {
+    "editor.defaultFormatter": "biomejs.biome",
+    "editor.tabSize": 2
+  },
+  "[jsonc]": {
+    "editor.defaultFormatter": "biomejs.biome",
+    "editor.tabSize": 2
+  },
+  "[markdown]": {
+    "editor.defaultFormatter": "biomejs.biome",
+    "editor.formatOnSave": false,
+    "editor.quickSuggestions": {
+      "comments": "off",
+      "other": "on",
+      "strings": "off"
+    },
+    "editor.wordWrap": "on"
+  },
+  "[prisma]": {
+    "editor.defaultFormatter": "Prisma.prisma",
+    "editor.formatOnSave": true,
+    "editor.tabSize": 2
+  },
+  "[scss]": {
     "editor.defaultFormatter": "biomejs.biome"
   },
   "[typescript]": {
-    "editor.defaultFormatter": "biomejs.biome"
-  },
-  "[javascriptreact]": {
-    "editor.defaultFormatter": "biomejs.biome"
+    "editor.defaultFormatter": "biomejs.biome",
+    "editor.tabSize": 2
   },
   "[typescriptreact]": {
-    "editor.defaultFormatter": "biomejs.biome"
-  },
-  "[json]": {
-    "editor.defaultFormatter": "biomejs.biome"
-  },
-  "[jsonc]": {
-    "editor.defaultFormatter": "biomejs.biome"
-  },
-  "[html]": {
-    "editor.defaultFormatter": "biomejs.biome"
-  },
-  "[vue]": {
-    "editor.defaultFormatter": "biomejs.biome"
-  },
-  "[svelte]": {
-    "editor.defaultFormatter": "biomejs.biome"
-  },
-  "[css]": {
-    "editor.defaultFormatter": "biomejs.biome"
+    "editor.defaultFormatter": "biomejs.biome",
+    "editor.tabSize": 2
   },
   "[yaml]": {
-    "editor.defaultFormatter": "biomejs.biome"
+    "editor.defaultFormatter": "biomejs.biome",
+    "editor.tabSize": 2
   },
-  "[graphql]": {
-    "editor.defaultFormatter": "biomejs.biome"
-  },
-  "[markdown]": {
-    "editor.defaultFormatter": "biomejs.biome"
-  },
-  "[mdx]": {
-    "editor.defaultFormatter": "biomejs.biome"
-  },
+  "biome.lsp.arguments": [
+    "--config-path",
+    "biome.json"
+  ],
+  // Biome LSP
+  "biome.lsp.bin": "biome",
+  "css.format.enable": false,
+  // Disable built-in validators (Biome handles these)
+  "css.validate": false,
+  // Debug
+  "debug.console.wordWrap": false,
+  "debug.internalConsoleOptions": "neverOpen",
+  // Code Actions
   "editor.codeActionsOnSave": {
+    "source.addMissingImports.ts": "explicit",
     "source.fixAll.biome": "explicit",
-    "source.organizeImports.biome": "explicit"
-  }
+    "source.fixAll.eslint": "never", // Disable ESLint if using Biome
+    "source.fixAll.ts": "explicit",
+    "source.organizeImports.biome": "explicit",
+    "source.removeUnusedImports": "explicit",
+    "source.sort.json": "explicit",
+    "source.sortImports": "explicit"
+  },
+  "editor.cursorSmoothCaretAnimation": "off", // Disable for better performance
+  // Formatting (Biome as primary)
+  "editor.defaultFormatter": "biomejs.biome",
+  // Editor Performance
+  "editor.fastScrollSensitivity": 5,
+  "editor.formatOnPaste": false,
+  "editor.formatOnSave": true,
+  "editor.formatOnType": false,
+  "editor.hideCursorInOverviewRuler": true,
+  "editor.minimap.enabled": false,
+  "editor.occurrencesHighlight": "off",
+  "editor.overviewRulerBorder": false,
+  "editor.renderControlCharacters": false,
+  "editor.renderLineHighlight": "line",
+  "editor.renderWhitespace": "none",
+  "editor.scrollBeyondLastLine": false,
+  "editor.smoothScrolling": false, // Disable for better performance
+  // Emmet
+  "emmet.includeLanguages": {
+    "javascript": "javascriptreact",
+    "typescript": "typescriptreact"
+  },
+  "emmet.showExpandedAbbreviation": "always",
+  "emmet.triggerExpansionOnTab": true,
+  "eslint.format.enable": false,
+  "extensions.autoUpdate": true,
+  // Extensions
+  "extensions.ignoreRecommendations": false,
+  // File Associations
+  // File Management
+  "files.autoSave": "afterDelay",
+  "files.autoSaveDelay": 2000,
+  "files.exclude": {
+    "**/.DS_Store": true,
+    "**/.git": true,
+    "**/.next": true,
+    "**/.turbo": true,
+    "**/build": true,
+    "**/dist": true,
+    "**/node_modules": true
+  },
+  "files.watcherExclude": {
+    "**/.cache/*": true,
+    "**/.git/*": true,
+    "**/.next/*": true,
+    "**/.turbo/*": true,
+    "**/build/*": true,
+    "**/coverage/*": true,
+    "**/dist/*": true,
+    "**/node_modules/*/**": true,
+    "**/prisma/generated/*": true
+  },
+  // Git
+  "git.autofetch": true,
+  "git.confirmSync": false,
+  "git.enableSmartCommit": true,
+  "git.ignoreMissingGitWarning": true,
+  // Auto-closing tags for forms
+  "html.autoClosingTags": true,
+  "html.format.enable": false,
+  "html.validate.scripts": false,
+  "html.validate.styles": false,
+  "javascript.autoClosingTags": true,
+  "javascript.format.enable": false,
+  "javascript.suggest.autoImports": true,
+  "javascript.suggest.completeFunctionCalls": true,
+  "javascript.updateImportsOnFileMove.enabled": "always",
+  "javascript.validate.enable": false, // Let Biome handle validation
+  "json.format.enable": false,
+  "less.validate": false,
+  // Path Intelligence
+  "path-intellisense.extensionOnImport": true,
+  "path-intellisense.mappings": {
+    "@": "${workspaceRoot}/apps/web/src",
+    "@smart-turbo": "${workspaceRoot}/packages"
+  },
+  "prettier.enable": false,
+  "scss.validate": false,
+  // Search Performance
+  "search.exclude": {
+    "**/.next": true,
+    "**/.turbo": true,
+    "**/bower_components": true,
+    "**/build": true,
+    "**/coverage": true,
+    "**/dist": true,
+    "**/node_modules": true,
+    "**/prisma/generated": true
+  },
+  "search.followSymlinks": false,
+  "search.smartCase": true,
+  // Telemetry (disable for performance)
+  "terminal.integrated.defaultProfile.linux": "zsh",
+  // Terminal
+  "terminal.integrated.defaultProfile.osx": "zsh",
+  "terminal.integrated.defaultProfile.windows": "PowerShell",
+  "terminal.integrated.enablePersistentSessions": false,
+  "terminal.integrated.shellIntegration.enabled": false,
+  "typescript.autoClosingTags": true,
+  "typescript.disableAutomaticTypeAcquisition": true,
+  "typescript.enablePromptUseWorkspaceTsdk": true,
+  "typescript.format.enable": true,
+  "typescript.preferences.importModuleSpecifier": "project-relative",
+  "typescript.preferences.includePackageJsonAutoImports": "off",
+  "typescript.suggest.autoImports": true,
+  "typescript.suggest.completeFunctionCalls": true,
+  // Next.js 16+ (App Router)
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.tsserver.experimental.enableProjectDiagnostics": false,
+  // TypeScript/JavaScript Performance
+  "typescript.tsserver.maxTsServerMemory": 4096,
+  "typescript.updateImportsOnFileMove.enabled": "always",
+  "typescript.validate.enable": true, // Keep TypeScript validation
+  // Next.js extension
+  "WillLuke.nextjs.addTypesOnSave": true,
+  "WillLuke.nextjs.hasPrompted": true,
+  // Workbench
+  "workbench.editor.enablePreview": false,
+  "workbench.editor.limit.enabled": true,
+  "workbench.editor.limit.excludeDirty": true,
+  "workbench.editor.limit.value": 10,
+  "workbench.startupEditor": "none",
+  "workbench.tree.renderIndentGuides": "none"
 }

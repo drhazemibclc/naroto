@@ -28,7 +28,7 @@
     "lefthook",
     "pwa",
     "tauri",
-    "mcp",
+    "mcp"
   ],
   "examples": ["todo", "ai"],
   "auth": "better-auth",
@@ -37,5 +37,5 @@
   "dbSetup": "none",
   "api": "trpc",
   "webDeploy": "none",
-  "serverDeploy": "none",
+  "serverDeploy": "none"
 }

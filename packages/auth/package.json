@@ -1,6 +1,18 @@
 {
-  "name": "@naroto/auth",
-  "type": "module",
+  "dependencies": {
+    "@better-auth/dash": "^0.1.6",
+    "@naroto/db": "workspace:*",
+    "@naroto/env": "workspace:*",
+    "better-auth": "catalog:",
+    "dotenv": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@better-auth/cli": "^1.4.19",
+    "@naroto/config": "workspace:*",
+    "tsx": "^4.21.0",
+    "typescript": "catalog:"
+  },
   "exports": {
     ".": {
       "default": "./src/index.ts"
@@ -9,16 +21,11 @@
       "default": "./src/*.ts"
     }
   },
-  "scripts": {},
-  "dependencies": {
-    "@naroto/db": "workspace:*",
-    "@naroto/env": "workspace:*",
-    "better-auth": "catalog:",
-    "dotenv": "catalog:",
-    "zod": "catalog:"
+  "name": "@naroto/auth",
+  "scripts": {
+    "auth:admin": "tsx src/admin.ts",
+    "auth:gen": "SKIP_INIT=true better-auth generate --config ./src/index.ts --output ../db/prisma/schema/auth.prisma",
+    "typecheck": "NODE_OPTIONS='--max-old-space-size=8192' tsc --noEmit"
   },
-  "devDependencies": {
-    "@naroto/config": "workspace:*",
-    "typescript": "catalog:"
-  }
+  "type": "module"
 }

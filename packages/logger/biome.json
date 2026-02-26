@@ -1,0 +1,26 @@
+{
+  "extends": "//",
+  "files": {
+    "includes": ["!node_modules"]
+  },
+  "linter": {
+    "rules": {
+      "correctness": {
+        "useExhaustiveDependencies": "off"
+      },
+      "performance": {
+        "noBarrelFile": "off"
+      },
+      "style": {
+        "useConsistentTypeDefinitions": "off"
+      },
+      "suspicious": {
+        "noArrayIndexKey": "off",
+        "noConsole": "off",
+        "noDocumentCookie": "off",
+        "noDoubleEquals": "off"
+      }
+    }
+  },
+  "root": false
+}

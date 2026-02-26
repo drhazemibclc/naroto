@@ -1,10 +1,11 @@
-import "@naroto/env/web";
-import type { NextConfig } from "next";
+import '@naroto/env/web';
+
+import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   typedRoutes: true,
   reactCompiler: true,
-  transpilePackages: ["shiki"],
+  transpilePackages: ['shiki']
 };
 
 export default nextConfig;

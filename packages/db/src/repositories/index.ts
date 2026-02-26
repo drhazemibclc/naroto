@@ -1,0 +1,18 @@
+export * from './appointment.repo';
+export * from './clinic.repo';
+export * from './dashboard.repo';
+export * from './diagnosis.repo';
+export * from './doctor.repo';
+export * as doctorQueries from './doctor.repo';
+export * from './growth.repo';
+export * as labTestRepo from './lab-test.repo';
+export * as medicalRecordRepo from './medical-record.repo';
+export * from './patient.repo';
+export * from './payment.repo';
+export * as prescriptionRepo from './prescription.repo';
+export * from './service.repo';
+export * from './system.repo';
+export * from './vac.repository';
+export * as validationRepo from './validation.repo';
+export * from './visit.repo';
+export * as vitalSignsRepo from './vital-signs.repo';

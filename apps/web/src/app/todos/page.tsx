@@ -1,40 +1,40 @@
-"use client";
+'use client';
 
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { Loader2, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { Loader2, Trash2 } from 'lucide-react';
+import { useState } from 'react';
 
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
-import { trpc } from "@/utils/trpc";
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
+import { trpc } from '@/utils/trpc';
 
 export default function TodosPage() {
-  const [newTodoText, setNewTodoText] = useState("");
+  const [newTodoText, setNewTodoText] = useState('');
 
   const todos = useQuery(trpc.todo.getAll.queryOptions());
   const createMutation = useMutation(
     trpc.todo.create.mutationOptions({
       onSuccess: () => {
         todos.refetch();
-        setNewTodoText("");
-      },
-    }),
+        setNewTodoText('');
+      }
+    })
   );
   const toggleMutation = useMutation(
     trpc.todo.toggle.mutationOptions({
       onSuccess: () => {
         todos.refetch();
-      },
-    }),
+      }
+    })
   );
   const deleteMutation = useMutation(
     trpc.todo.delete.mutationOptions({
       onSuccess: () => {
         todos.refetch();
-      },
-    }),
+      }
+    })
   );
 
   const handleAddTodo = (e: React.FormEvent) => {
@@ -53,58 +53,64 @@ export default function TodosPage() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-md py-10">
+    <div className='mx-auto w-full max-w-md py-10'>
       <Card>
         <CardHeader>
           <CardTitle>Todo List</CardTitle>
           <CardDescription>Manage your tasks efficiently</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleAddTodo} className="mb-6 flex items-center space-x-2">
+          <form
+            className='mb-6 flex items-center space-x-2'
+            onSubmit={handleAddTodo}
+          >
             <Input
-              value={newTodoText}
-              onChange={(e) => setNewTodoText(e.target.value)}
-              placeholder="Add a new task..."
               disabled={createMutation.isPending}
+              onChange={e => setNewTodoText(e.target.value)}
+              placeholder='Add a new task...'
+              value={newTodoText}
             />
-            <Button type="submit" disabled={createMutation.isPending || !newTodoText.trim()}>
-              {createMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Add"}
+            <Button
+              disabled={createMutation.isPending || !newTodoText.trim()}
+              type='submit'
+            >
+              {createMutation.isPending ? <Loader2 className='h-4 w-4 animate-spin' /> : 'Add'}
             </Button>
           </form>
 
           {todos.isLoading ? (
-            <div className="flex justify-center py-4">
-              <Loader2 className="h-6 w-6 animate-spin" />
+            <div className='flex justify-center py-4'>
+              <Loader2 className='h-6 w-6 animate-spin' />
             </div>
           ) : todos.data?.length === 0 ? (
-            <p className="py-4 text-center">No todos yet. Add one above!</p>
+            <p className='py-4 text-center'>No todos yet. Add one above!</p>
           ) : (
-            <ul className="space-y-2">
-              {todos.data?.map((todo) => (
+            <ul className='space-y-2'>
+              {todos.data?.map(todo => (
                 <li
+                  className='flex items-center justify-between rounded-md border p-2'
                   key={todo.id}
-                  className="flex items-center justify-between rounded-md border p-2"
                 >
-                  <div className="flex items-center space-x-2">
+                  <div className='flex items-center space-x-2'>
                     <Checkbox
                       checked={todo.completed}
-                      onCheckedChange={() => handleToggleTodo(todo.id, todo.completed)}
                       id={`todo-${todo.id}`}
+                      onCheckedChange={() => handleToggleTodo(todo.id, todo.completed)}
                     />
                     <label
+                      className={`${todo.completed ? 'text-muted-foreground line-through' : ''}`}
                       htmlFor={`todo-${todo.id}`}
-                      className={`${todo.completed ? "line-through text-muted-foreground" : ""}`}
                     >
                       {todo.text}
                     </label>
                   </div>
                   <Button
-                    variant="ghost"
-                    size="icon"
+                    aria-label='Delete todo'
                     onClick={() => handleDeleteTodo(todo.id)}
-                    aria-label="Delete todo"
+                    size='icon'
+                    variant='ghost'
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 className='h-4 w-4' />
                   </Button>
                 </li>
               ))}

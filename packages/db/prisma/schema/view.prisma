@@ -1,0 +1,419 @@
+view ClinicDashboardMV {
+  clinicId   String
+  clinicName String
+
+  // Appointment stats
+  totalAppointments     Int
+  todayAppointments     Int
+  upcomingAppointments  Int
+  completedAppointments Int
+
+  // Patient stats
+  totalPatients        Int
+  activePatients       Int
+  newPatientsThisMonth Int
+
+  // Financial stats
+  monthlyRevenue  Float
+  pendingPayments Float
+  totalRevenue    Float
+
+  // Doctor stats
+  activeDoctors       Int
+  averageDoctorRating Float
+
+  // Pediatric-specific stats
+  immunizationsDue    Int
+  growthChecksPending Int
+
+  // Staff stats
+  totalStaff Int
+
+  updatedAt DateTime
+}
+
+// =========== PATIENT OVERVIEW VIEW ===========
+
+view PatientOverviewMV {
+  patientId           String
+  patientPublicId     String
+  fullName            String
+  dateOfBirth         DateTime?
+  ageMonths           Int?
+  gender              String?
+  bloodGroup          String?
+  medicalRecordNumber String
+
+  // Contact info
+  phone   String?
+  email   String?
+  address String?
+
+  // Medical info
+  allergies            String?
+  medicalConditions    String?
+  primaryCarePhysician String?
+
+  // Appointment stats
+  totalAppointments    Int
+  lastAppointmentDate  DateTime?
+  upcomingAppointments Int
+
+  // Medical stats
+  totalDiagnosis      Int
+  totalPrescriptions  Int
+  activePrescriptions Int
+
+  // Immunization stats
+  totalImmunizations   Int
+  pendingImmunizations Int
+
+  // Growth stats
+  lastWeight      Float?
+  lastHeight      Float?
+  lastGrowthCheck DateTime?
+
+  // Guardian info
+  primaryGuardian String?
+  guardianPhone   String?
+
+  clinicId  String
+  updatedAt DateTime
+}
+
+// =========== DOCTOR PERFORMANCE VIEW ===========
+
+view DoctorPerformanceMV {
+  doctorId          String
+  doctorPublicId    String
+  name              String
+  specialty         String?
+  email             String?
+  phone             String?
+  rating            Float?
+  yearsOfExperience Int?
+
+  // Appointment stats
+  totalAppointments     Int
+  appointmentsThisMonth Int
+  completedAppointments Int
+  cancellationRate      Float
+
+  // Patient stats
+  totalPatients        Int
+  newPatientsThisMonth Int
+
+  // Revenue stats
+  totalRevenue   Float
+  monthlyRevenue Float
+
+  // Prescription stats
+  totalPrescriptions  Int
+  activePrescriptions Int
+
+  // Rating stats
+  averagePatientRating Float
+  totalRatings         Int
+
+  // Schedule stats
+  averagePatientsPerDay Float
+  utilizationRate       Float
+
+  clinicId  String
+  updatedAt DateTime
+}
+
+// =========== FINANCIAL OVERVIEW VIEW ===========
+
+view FinancialOverviewMV {
+  clinicId   String
+  clinicName String
+
+  // Revenue by month
+  currentMonthRevenue  Float
+  previousMonthRevenue Float
+
+  // Revenue by category
+  consultationRevenue Float
+  procedureRevenue    Float
+  labRevenue          Float
+  vaccinationRevenue  Float
+
+  // Payment status
+  totalRevenue  Float
+  paidAmount    Float
+  pendingAmount Float
+
+  // Expense breakdown
+  totalExpenses         Float
+  payrollExpenses       Float
+  medicalSupplyExpenses Float
+  facilityExpenses      Float
+
+  // Net profit
+  netProfit    Float
+  profitMargin Float
+
+  // Top revenue sources
+  topService String?
+  topDoctor  String?
+
+  updatedAt DateTime
+}
+
+// =========== APPOINTMENT SCHEDULE VIEW ===========
+
+view AppointmentScheduleMV {
+  appointmentId       String
+  appointmentPublicId String
+  date                DateTime
+  startTime           String?
+  durationMinutes     Int?
+  status              String
+  type                String?
+  reason              String?
+
+  // Patient info
+  patientId        String
+  patientPublicId  String
+  patientName      String
+  patientAgeMonths Int?
+  patientGender    String?
+  patientPhone     String?
+
+  // Doctor info
+  doctorId        String
+  doctorPublicId  String
+  doctorName      String
+  doctorSpecialty String?
+  doctorColorCode String?
+
+  // Service info
+  serviceId       String?
+  serviceName     String?
+  serviceCategory String?
+  servicePrice    Float?
+
+  // Billing info
+  paymentStatus String?
+  totalAmount   Float?
+  amountPaid    Float?
+
+  clinicId  String
+  updatedAt DateTime
+}
+
+// =========== PATIENT GROWTH CHART VIEW ===========
+
+view PatientGrowthChartMV {
+  patientId       String
+  patientPublicId String
+  fullName        String
+  gender          String?
+  dateOfBirth     DateTime?
+
+  // Growth records
+  ageDays   Int?
+  ageMonths Int?
+
+  // Measurements
+  weight            Float?
+  height            Float?
+  headCircumference Float?
+  bmi               Float?
+
+  // WHO Percentiles
+  weightForAgeZ Float?
+  heightForAgeZ Float?
+  hcForAgeZ     Float?
+
+  // WHO Percentile classifications
+  weightPercentile String?
+  heightPercentile String?
+  growthStatus     String?
+  recordedBy       String?
+  notes            String?
+  recordedAt       DateTime
+  clinicId         String
+  updatedAt        DateTime
+}
+
+// =========== IMMUNIZATION SCHEDULE VIEW ===========
+
+view ImmunizationScheduleMV {
+  patientId       String
+  patientPublicId String
+  fullName        String
+  dateOfBirth     DateTime?
+  ageMonths       Int?
+
+  // Immunization info
+  immunizationId     String
+  vaccineName        String
+  doseNumber         Int?
+  totalDoses         Int?
+  administrationDate DateTime?
+  nextDueDate        DateTime?
+  status             String
+
+  // Schedule info
+  recommendedAgeDays Int?
+  isMandatory        Boolean?
+  description        String?
+
+  // Timing
+  daysOverdue  Int?
+  daysUntilDue Int?
+  isOverdue    Boolean
+
+  // Admin info
+  administeringDoctor String?
+  manufacturer        String?
+  batchNumber         String?
+  notes               String?
+
+  clinicId  String
+  updatedAt DateTime
+}
+
+// =========== MEDICAL RECORDS VIEW ===========
+
+view MedicalRecordsMV {
+  medicalRecordId       String
+  medicalRecordPublicId String
+
+  // Patient info
+  patientId             String
+  patientPublicId       String
+  patientName           String
+  patientAgeAtDiagnosis Int?
+
+  // Doctor info
+  doctorId        String
+  doctorPublicId  String
+  doctorName      String
+  doctorSpecialty String?
+
+  // Diagnosis info
+  encounterId   String?
+  encounterDate DateTime?
+  encounterType String?
+  diagnosis     String?
+  treatment     String?
+
+  // Appointment info
+  appointmentId     String?
+  appointmentDate   DateTime?
+  appointmentReason String?
+
+  // SOAP Notes
+  subjective String?
+  objective  String?
+  assessment String?
+  plan       String?
+
+  // Medical data
+  symptoms       String?
+  medications    String?
+  followUpDate   DateTime?
+  isConfidential Boolean?
+
+  // Vital signs at time of encounter
+  temperature      Float?
+  heartRate        Int?
+  systolic         Int?
+  diastolic        Int?
+  respiratoryRate  Int?
+  oxygenSaturation Float?
+  weight           Float?
+  height           Float?
+
+  // Prescriptions from this encounter
+  prescriptionCount Int
+
+  // Lab tests from this encounter
+  labTestCount Int
+
+  clinicId  String
+  updatedAt DateTime
+}
+
+// =========== NOTIFICATIONS VIEW ===========
+
+view NotificationsMV {
+  notificationId       String
+  notificationPublicId String
+
+  // User info
+  userId String
+
+  // Notification content
+  type    String
+  title   String
+  message String
+  data    Json?
+
+  // Status
+  isRead    Boolean
+  priority  String?
+  actionUrl String?
+
+  // Timing
+  createdAt DateTime
+  expiresAt DateTime?
+
+  // Clinic context
+  clinicId   String?
+  clinicName String?
+
+  // Notification metadata
+  daysSinceCreated Int?
+  isExpired        Boolean
+
+  // Related entity info
+  relatedPatientId     String?
+  relatedAppointmentId String?
+  relatedDoctorId      String?
+
+  updatedAt DateTime
+}
+
+// =========== EXPENSE ANALYSIS VIEW ===========
+
+view ExpenseAnalysisMV {
+  clinicId   String
+  clinicName String
+
+  // Expense by category
+  expenseCategoryId    String
+  expenseCategoryName  String
+  expenseCategoryColor String?
+
+  // Expense by subcategory
+  expenseSubcategoryId    String
+  expenseSubcategoryName  String
+  expenseSubcategoryColor String?
+
+  // Expense details
+  expenseId       String
+  expensePublicId String
+  amount          Float
+  date            DateTime
+  description     String?
+
+  // Time analysis
+  year      Int
+  month     Int
+  monthName String
+  quarter   Int
+
+  // Trend analysis
+  monthlyAverage     Float?
+  categoryPercentage Float?
+
+  // Comparison metrics
+  previousMonthAmount  Float?
+  monthOverMonthChange Float?
+
+  updatedAt DateTime
+}

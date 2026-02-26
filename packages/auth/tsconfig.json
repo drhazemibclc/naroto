@@ -3,9 +3,20 @@
   "compilerOptions": {
     "declaration": true,
     "declarationMap": true,
-    "sourceMap": true,
+    "sourceMap": false,
     "outDir": "dist",
+    "rootDir": "src",
     "composite": true,
-    "strictNullChecks": true
-  }
+    "incremental": true,
+    "tsBuildInfoFile": "./dist/.tsbuildinfo",
+    "strictNullChecks": true,
+    "paths": {
+      "@generated/client": ["../db/prisma/generated/client/client.ts"],
+      "@generated/client/browser": ["../db/prisma/generated/client/browser.ts"],
+      "@generated/client/client": ["../db/prisma/generated/client/client.ts"],
+      "@generated/*": ["../db/prisma/generated/*"]
+    }
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "dist"]
 }

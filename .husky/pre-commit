@@ -1,5 +1,15 @@
-pnpm test
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
 
-# ultracite
-#!/bin/sh
-pnpm dlx lint-staged
+# 1. Run lint-staged on changed files
+echo "🚀 Running lint-staged..."
+pnpm lint-staged
+
+# 2. Check workspace integrity (fast)
+echo "🔍 Checking workspace health..."
+pnpm lint:ws
+
+# 3. Optional: Quick type-check on affected only
+# This can be slow; uncomment if you want maximum safety
+# echo "🛡️  Type checking..."
+# pnpm turbo typecheck --filter=[HEAD^1]

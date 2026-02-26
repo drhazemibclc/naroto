@@ -1,12 +1,12 @@
-# dependencies (bun install)
+# dependencies (pnpm install)
 node_modules
 
 # output
 out
 dist
 *.tgz
-/prisma/generated
-
+/prisma/generated/
+!generated/** */
 # code coverage
 coverage
 *.lcov

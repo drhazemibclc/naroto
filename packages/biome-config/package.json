@@ -1,0 +1,19 @@
+{
+  "name": "@naroto/biome",
+  "module": "base.json",
+  "type": "module",
+  "devDependencies": {
+    "@naroto/config": "workspace:*"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "exports": {
+    "./base": "./base.json",
+    "./next-js": "./next.json",
+    "./react-internal": "./react-internal.json"
+  },
+  "scripts": {
+        "typecheck": "NODE_OPTIONS='--max-old-space-size=8192' tsc --noEmit --emitDeclarationOnly false"
+  }
+}

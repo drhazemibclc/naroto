@@ -9,20 +9,31 @@
       "default": "./src/*.ts"
     }
   },
-  "scripts": {},
+  "scripts": {
+        "typecheck": "NODE_OPTIONS='--max-old-space-size=8192' tsc --noEmit --emitDeclarationOnly false"
+  },
   "dependencies": {
+    "@prisma/client": "catalog:",
     "@naroto/auth": "workspace:*",
     "@naroto/db": "workspace:*",
     "@naroto/env": "workspace:*",
-    "@prisma/client": "catalog:",
+    "@naroto/logger": "workspace:*",
+    "@naroto/redis": "workspace:*",
     "@trpc/client": "catalog:",
     "@trpc/server": "catalog:",
+    "date-fns": "^4.1.0",
+    "date-fns-tz": "^3.2.0",
     "dotenv": "catalog:",
-    "next": "catalog:",
+    "next": "^16.1.6",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "superjson": "^2.2.6",
     "zod": "catalog:"
   },
   "devDependencies": {
     "@naroto/config": "workspace:*",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
     "typescript": "catalog:"
   }
 }
