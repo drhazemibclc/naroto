@@ -42,7 +42,7 @@ export function AppointmentsClient() {
 
   const appointments = data?.items || [];
   const todayList = todayAppointments || [];
-  
+
   const filteredAppointments = appointments.filter(app =>
     `${app.patient.firstName} ${app.patient.lastName}`.toLowerCase().includes(search.toLowerCase())
   );
@@ -93,9 +93,7 @@ export function AppointmentsClient() {
               <CardTitle className='font-medium text-sm'>Check-ins</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className='font-bold text-2xl'>
-                {todayList.filter((a: any) => a.status === 'CHECKED_IN').length}
-              </div>
+              <div className='font-bold text-2xl'>{todayList.filter((a: any) => a.status === 'CHECKED_IN').length}</div>
               <p className='text-muted-foreground text-xs'>Waiting to be seen</p>
             </CardContent>
           </Card>

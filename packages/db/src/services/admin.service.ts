@@ -15,9 +15,9 @@ import { CACHE_KEYS, CACHE_TTL } from '@naroto/redis/cache-keys';
 import { addDays, endOfDay, endOfMonth, startOfDay, startOfMonth, subDays } from 'date-fns';
 import { z } from 'zod';
 
-import { ValidationError } from '..';
 import type { AppointmentStatus, PrismaClient } from '../../generated/client';
 import { Prisma } from '../../generated/client';
+import { ValidationError } from '..';
 import { prisma } from '../client';
 import { AppError, ConflictError, NotFoundError } from '../error';
 import * as appointmentRepo from '../repositories/appointment.repo';

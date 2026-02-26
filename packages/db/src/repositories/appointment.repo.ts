@@ -14,7 +14,6 @@ import { toNumber } from '../utils';
  * - All functions accept PrismaClient as first parameter
  */
 
-
 export async function findRecentAppointments(db: PrismaClient, clinicId: string, limit: number, offset: number) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);

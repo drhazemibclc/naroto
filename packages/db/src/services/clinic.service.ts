@@ -777,7 +777,7 @@ export class DashboardService {
   async getRecentAppointments(clinicId: string, limit = 10) {
     const validatedClinicId = z.uuid().parse(clinicId);
     const validatedLimit = z.number().int().min(1).max(50).parse(limit);
-    const validatedOffset = 0; 
+    const validatedOffset = 0;
 
     const cacheKey = CACHE_KEYS.RECENT_APPOINTMENTS(validatedClinicId, validatedLimit);
 
@@ -787,7 +787,12 @@ export class DashboardService {
         if (cached) return cached;
       }
 
-      const appointments = await appointmentRepo.findRecentAppointments(this.db, validatedClinicId, validatedLimit, validatedOffset);
+      const appointments = await appointmentRepo.findRecentAppointments(
+        this.db,
+        validatedClinicId,
+        validatedLimit,
+        validatedOffset
+      );
 
       if (this.CACHE_ENABLED) {
         await cacheService.set(cacheKey, appointments, CACHE_TTL.APPOINTMENT);
