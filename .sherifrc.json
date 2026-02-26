@@ -1,0 +1,7 @@
+{
+  "ignore": [
+    "@naroto/config",
+    "@naroto/env"
+  ],
+  "ignoreWorkspaceRoot": true
+}

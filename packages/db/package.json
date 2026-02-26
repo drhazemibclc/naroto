@@ -6,7 +6,7 @@
     "@naroto/redis": "workspace:*",
     "@prisma/adapter-pg": "^7.4.1",
     "@prisma/client": "catalog:",
-    "@types/node": "^25.3.0",
+    "@types/node": "^25.3.1",
     "date-fns": "^4.1.0",
     "date-fns-tz": "^3.2.0",
     "decimal.js": "^10.6.0",

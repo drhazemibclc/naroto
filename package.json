@@ -7,10 +7,9 @@
     "@types/node": "^25.3.1",
     "dotenv": "catalog:",
     "express-session": "^1.19.0",
-    "husky": "latest",
-    "lefthook": "latest",
-    "lint-staged": "latest",
-    "sherif": "latest",
+    "lefthook": "^2.1.1",
+    "lint-staged": "^16.2.7",
+    "sherif": "^1.10.0",
     "turbo": "^2.8.11",
     "typescript": "catalog:",
     "ultracite": "7.2.4",
@@ -18,27 +17,26 @@
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx,json}": [
-      "biome check --write --no-errors-on-unmatched",
-      "ultracite fix"
+      "biome check --write --no-errors-on-unmatched"
     ],
-    "package.json": [
-      "sherif"
-    ]
+    "package.json": "pnpm run lint:ws"
   },
   "name": "naroto",
   "packageManager": "pnpm@10.30.3",
   "private": true,
   "scripts": {
     "build": "turbo build",
-    "bump-deps": "pnpx -npm-check-updates --deep -u -x geist && pnpm install",
+    "bump-deps": "pnpx npm-check-updates --deep -u -x geist && pnpm install",
     "check": "biome check --write",
     "clean": "rm -rf .turbo node_modules && find . -name 'dist' -type d -prune -exec rm -rf {} +",
     "db:generate": "turbo -F @naroto/db db:generate",
     "db:push": "turbo -F @naroto/db db:push",
     "dev": "turbo dev",
     "fix": "ultracite fix",
-    "lint:ws": "sherif -f",
-    "prepare": "husky",
+    "format": "biome format --write .",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "lint:ws": "sherif --fix ",
     "typecheck": "turbo typecheck",
     "ultra-check": "ultracite check",
     "ultra-fix": "ultracite fix"

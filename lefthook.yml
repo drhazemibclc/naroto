@@ -3,13 +3,29 @@
 
 pre-commit:
   parallel: true
-  jobs:
-    - name: biome
+  commands:
+    biome:
       glob: "*.{js,ts,cjs,mjs,d.cts,d.mts,jsx,tsx,json,jsonc}"
       run: pnpm biome check --write --no-errors-on-unmatched --files-ignore-unknown=true {staged_files}
       stage_fixed: true
-commands:
-    lint-staged:
-      run: pnpm lint-staged
-    workspace-lint:
+    
+    sherif:
+      files: git diff --name-only --staged
+      glob: "package.json"
       run: pnpm lint:ws
+      # Note: We don't pass {staged_files} here because sherif wants the root
+
+pre-push:
+  parallel: true
+  commands:
+    typecheck:
+      run: pnpm typecheck
+    build:
+      # Only run build on push to save time, using turbo for speed
+      run: pnpm build
+
+# Sync dependencies automatically
+post-merge:
+  commands:
+    install:
+      run: pnpm install
