@@ -6,13 +6,13 @@
     "@naroto/redis": "workspace:*",
     "@prisma/adapter-pg": "^7.4.1",
     "@prisma/client": "catalog:",
-    "@types/node": "^25.3.1",
+    "@types/node": "^25.3.2",
     "date-fns": "^4.1.0",
     "date-fns-tz": "^3.2.0",
     "decimal.js": "^10.6.0",
     "dotenv": "catalog:",
     "jstat": "^1.9.6",
-    "pg": "^8.18.0",
+    "pg": "^8.19.0",
     "prisma-generator-typescript-interfaces": "^3.1.0",
     "prisma-json-types-generator": "^4.1.1",
     "react": "^19.2.4",
@@ -40,10 +40,10 @@
       "default": "./generated/client.ts"
     },
     "./queries": {
-      "default": "./src/queries/index.ts"
+      "default": "./src/repositories/index.ts"
     },
     "./schemas": {
-      "default": "./src/schemas/index.ts"
+      "default": "./src/zodSchemas/index.ts"
     },
     "./utils": {
       "default": "./src/utils/index.ts"
@@ -54,7 +54,9 @@
     "check": "biome check --write",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
+    "db:pull": "prisma db pull",
     "db:push": "prisma db push",
+    "db:reset": "prisma db migrate reset --force",
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
     "typecheck": "NODE_OPTIONS='--max-old-space-size=8192' tsc --noEmit --emitDeclarationOnly false"

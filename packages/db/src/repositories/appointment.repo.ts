@@ -1,7 +1,8 @@
-import type { AppointmentStatus, Prisma, PrismaClient } from '@generated/client';
+// packages/db/src/Appointments.query.ts
+
 import { endOfDay, startOfDay, subDays, subMonths } from 'date-fns';
 
-import type { AppointmentType } from '../types';
+import type { AppointmentStatus, AppointmentType, Prisma, PrismaClient } from '../../generated/client';
 import { toNumber } from '../utils';
 
 /**
@@ -13,7 +14,44 @@ import { toNumber } from '../utils';
  * - All functions accept PrismaClient as first parameter
  */
 
+
+export async function findRecentAppointments(db: PrismaClient, clinicId: string, limit: number, offset: number) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return db.appointment.findMany({
+    where: { clinicId, isDeleted: false, appointmentDate: { gte: today } },
+    orderBy: { appointmentDate: 'desc' },
+    take: limit,
+    skip: offset
+  });
+}
 // ==================== SINGLE APPOINTMENT ====================
+export async function findTodaySchedule(db: PrismaClient, clinicId: string, date: Date) {
+  const startOfDay = new Date(date);
+  startOfDay.setHours(0, 0, 0, 0);
+  const endOfDay = new Date(date);
+  endOfDay.setHours(23, 59, 59, 999);
+
+  return db.appointment.findMany({
+    where: {
+      clinicId,
+      appointmentDate: {
+        gte: startOfDay,
+        lte: endOfDay
+      },
+      isDeleted: false
+    },
+    include: {
+      patient: true,
+      doctor: true
+    },
+    orderBy: { appointmentDate: 'asc' }
+  });
+}
+
+/**
+ * Finds all appointments for a month range
+ */
 export async function findForMonth(db: PrismaClient, clinicId: string, startDate: Date, endDate: Date) {
   return db.appointment.findMany({
     where: {
@@ -25,142 +63,32 @@ export async function findForMonth(db: PrismaClient, clinicId: string, startDate
       isDeleted: false
     },
     include: {
-      patient: {
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          phone: true,
-          image: true,
-          colorCode: true,
-          dateOfBirth: true
-        }
-      },
-      doctor: {
-        select: {
-          id: true,
-          name: true,
-          specialty: true,
-          img: true,
-          colorCode: true
-        }
-      },
-      service: {
-        select: {
-          id: true,
-          serviceName: true,
-          price: true
-        }
-      }
-    },
-    orderBy: { appointmentDate: 'asc' }
+      patient: { select: { firstName: true, lastName: true } }
+    }
   });
 }
+
 export async function searchAppointmentsByPatientName(
   db: PrismaClient,
   clinicId: string,
   patientName: string,
-  _validatedLimit: number
+  limit = 50
 ) {
   return db.appointment.findMany({
     where: {
       clinicId,
       patient: {
         OR: [
-          {
-            firstName: {
-              contains: patientName,
-              mode: 'insensitive'
-            }
-          },
-          {
-            lastName: {
-              contains: patientName,
-              mode: 'insensitive'
-            }
-          }
+          { firstName: { contains: patientName, mode: 'insensitive' } },
+          { lastName: { contains: patientName, mode: 'insensitive' } }
         ]
       },
       isDeleted: false
     },
-    include: {
-      patient: {
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          phone: true,
-          image: true,
-          colorCode: true,
-          dateOfBirth: true
-        }
-      },
-      doctor: {
-        select: {
-          id: true,
-          name: true,
-          specialty: true,
-          img: true,
-          colorCode: true
-        }
-      },
-      service: {
-        select: {
-          id: true,
-          serviceName: true,
-          price: true
-        }
-      }
-    },
-    orderBy: { appointmentDate: 'asc' }
+    take: limit,
+    include: { patient: true, doctor: true }
   });
 }
-
-export async function findTodaySchedule(
-  db: PrismaClient,
-  clinicId: string,
-  dateRange: {
-    todayStart: Date;
-    todayEnd: Date;
-  }
-) {
-  return db.appointment.findMany({
-    where: {
-      clinicId,
-      appointmentDate: {
-        gte: dateRange.todayStart,
-        lt: dateRange.todayEnd
-      },
-      isDeleted: false
-    },
-    include: {
-      patient: {
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          phone: true
-        }
-      },
-      doctor: {
-        select: {
-          id: true,
-          name: true,
-          specialty: true
-        }
-      },
-      service: {
-        select: {
-          id: true,
-          serviceName: true,
-          price: true
-        }
-      }
-    },
-    orderBy: { appointmentDate: 'asc' }
-  });
-}
-
 export async function findAppointmentById(db: PrismaClient, id: string, clinicId: string) {
   return db.appointment.findUnique({
     where: {
@@ -234,21 +162,23 @@ export async function findAppointmentByIdWithMedical(db: PrismaClient, id: strin
 
 // ==================== LIST APPOINTMENTS ====================
 
-export interface FindAppointmentsByClinicParams {
+export interface FindAppointmentsParams {
   clinicId: string;
   doctorId?: string;
   fromDate?: Date;
   limit?: number;
   offset?: number;
   patientId?: string;
+  search?: string;
   status?: AppointmentStatus[];
   toDate?: Date;
+  type?: AppointmentType[];
 }
 
-export async function findAppointmentsByClinic(db: PrismaClient, params: FindAppointmentsByClinicParams) {
-  const { clinicId, fromDate, toDate, status, doctorId, patientId, limit = 50, offset = 0 } = params;
+export async function findAppointments(db: PrismaClient, params: FindAppointmentsParams) {
+  const { clinicId, doctorId, patientId, fromDate, toDate, status, type, search, limit = 50, offset = 0 } = params;
 
-  const where = {
+  const where: Prisma.AppointmentWhereInput = {
     clinicId,
     isDeleted: false,
     ...(doctorId && { doctorId }),
@@ -264,6 +194,21 @@ export async function findAppointmentsByClinic(db: PrismaClient, params: FindApp
     ...(status?.length
       ? {
           status: { in: status }
+        }
+      : {}),
+    ...(type?.length
+      ? {
+          type: { in: type }
+        }
+      : {}),
+    ...(search
+      ? {
+          patient: {
+            OR: [
+              { firstName: { contains: search, mode: 'insensitive' } },
+              { lastName: { contains: search, mode: 'insensitive' } }
+            ]
+          }
         }
       : {})
   };
@@ -306,151 +251,15 @@ export async function findAppointmentsByClinic(db: PrismaClient, params: FindApp
   });
 }
 
-export interface FindAppointmentsByPatientParams {
-  clinicId: string;
-  fromDate?: Date;
-  includePast?: boolean;
-  limit?: number;
-  offset?: number;
-  patientId: string;
-  status?: AppointmentStatus[];
-  toDate?: Date;
-}
-
-// ==================== APPOINTMENTS ====================
-
-export async function getRecentAppointments(db: PrismaClient, clinicId: string) {
-  const today = new Date();
-  return db.appointment.findMany({
-    where: {
-      clinicId,
-      appointmentDate: { gte: startOfDay(today), lte: endOfDay(today) },
-      isDeleted: false
-    },
-    include: {
-      patient: {
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          image: true,
-          colorCode: true
-        }
-      },
-      doctor: {
-        select: {
-          id: true,
-          name: true,
-          img: true,
-          colorCode: true,
-          specialty: true
-        }
-      }
-    },
-    orderBy: { appointmentDate: 'asc' }
-  });
-}
-export async function countAppointmentsInRange(db: PrismaClient, clinicId: string, startDate: Date, endDate: Date) {
-  return db.appointment.count({
-    where: {
-      clinicId,
-      isDeleted: false,
-      appointmentDate: {
-        gte: startDate,
-        lte: endDate
-      }
-    }
-  });
-}
-
-export async function countAppointmentsByStatus(db: PrismaClient, clinicId: string, status: AppointmentStatus[]) {
-  return db.appointment.count({
-    where: {
-      clinicId,
-      status: { in: status },
-      isDeleted: false
-    }
-  });
-}
-
-export async function getTodaySchedule(db: PrismaClient, clinicId: string) {
-  const today = new Date();
-  const currentDay = today.toLocaleString('en-US', { weekday: 'long' });
-
-  return db.doctor.findMany({
-    where: {
-      clinicId,
-      isDeleted: false
-    },
-    include: {
-      appointments: {
-        where: {
-          appointmentDate: {
-            gte: startOfDay(today),
-            lte: endOfDay(currentDay === 'Sunday' ? subDays(today, 1) : today)
-          },
-          isDeleted: false
-        },
-        include: {
-          patient: {
-            select: {
-              firstName: true,
-              lastName: true,
-              image: true,
-              colorCode: true
-            }
-          }
-        }
-      },
-      workingDays: {
-        where: { clinicId }
-      }
-    }
-  });
-}
-
-export async function getAppointmentStatsPerDay(
+export async function findAppointmentsByPatient(
   db: PrismaClient,
-  clinicId: string,
-  period: 'day' | 'week' | 'month' | 'year' = 'month'
+  params: Omit<FindAppointmentsParams, 'doctorId'> & { includePast?: boolean }
 ) {
-  const now = new Date();
-  let startDate: Date;
-
-  switch (period) {
-    case 'day':
-      startDate = startOfDay(now);
-      break;
-    case 'week':
-      startDate = subDays(now, 7);
-      break;
-    case 'month':
-      startDate = subMonths(now, 1);
-      break;
-    case 'year':
-      startDate = subMonths(now, 12);
-      break;
-    default:
-      startDate = subMonths(now, 1);
-      break;
-  }
-
-  return db.appointment.groupBy({
-    by: ['status'],
-    where: {
-      clinicId,
-      appointmentDate: { gte: startDate },
-      isDeleted: false
-    },
-    _count: { _all: true }
-  });
-}
-
-export async function findAppointmentsByPatient(db: PrismaClient, params: FindAppointmentsByPatientParams) {
   const { patientId, clinicId, limit = 20, offset = 0, includePast = false, status, fromDate, toDate } = params;
 
   const now = new Date();
-  const where = {
+
+  const where: Prisma.AppointmentWhereInput = {
     patientId,
     clinicId,
     isDeleted: false,
@@ -499,20 +308,9 @@ export async function findAppointmentsByPatient(db: PrismaClient, params: FindAp
   });
 }
 
-export interface FindAppointmentsByDoctorParams {
-  clinicId: string;
-  doctorId: string;
-  fromDate?: Date;
-  limit?: number;
-  offset?: number;
-  patientId?: string;
-  status?: AppointmentStatus[];
-  toDate?: Date;
-}
-export async function findAppointmentsByDoctor(db: PrismaClient, params: FindAppointmentsByDoctorParams) {
+export async function findAppointmentsByDoctor(db: PrismaClient, params: FindAppointmentsParams) {
   const { doctorId, clinicId, fromDate, toDate, status, patientId, limit = 50, offset = 0 } = params;
 
-  // Use Prisma.AppointmentWhereInput for type safety
   const where: Prisma.AppointmentWhereInput = {
     doctorId,
     clinicId,
@@ -549,105 +347,6 @@ export async function findAppointmentsByDoctor(db: PrismaClient, params: FindApp
   });
 }
 
-// ==================== CREATE/UPDATE APPOINTMENTS ====================
-export async function createAppointment(db: PrismaClient, data: Prisma.AppointmentUncheckedCreateInput) {
-  return db.appointment.create({
-    data: {
-      ...data,
-      type: (data.type as AppointmentType) || 'CHECKUP',
-      status: (data.status as AppointmentStatus) || 'SCHEDULED'
-    },
-    select: {
-      id: true,
-      appointmentDate: true,
-      time: true,
-      patient: {
-        select: {
-          firstName: true,
-          lastName: true,
-          phone: true
-        }
-      },
-      doctor: {
-        select: {
-          name: true
-        }
-      }
-    }
-  });
-}
-
-export async function updateAppointment(
-  db: PrismaClient,
-  id: string,
-  clinicId: string,
-  data: Prisma.AppointmentUncheckedUpdateInput
-) {
-  return db.appointment.update({
-    where: {
-      id,
-      clinicId,
-      isDeleted: false // Safety check: don't update deleted records
-    },
-    data: {
-      ...data
-      // We omit updatedAt here to let the Service or Prisma handle it
-    },
-    include: {
-      patient: {
-        select: {
-          firstName: true,
-          lastName: true,
-          phone: true
-        }
-      },
-      doctor: {
-        select: {
-          name: true
-        }
-      }
-    }
-  });
-}
-
-export async function updateAppointmentStatus(
-  db: PrismaClient,
-  id: string,
-  clinicId: string,
-  status: AppointmentStatus,
-  reason?: string
-) {
-  return db.appointment.update({
-    where: {
-      id,
-      clinicId
-    },
-    data: {
-      status,
-      ...(reason && { reason }),
-      updatedAt: new Date()
-    },
-    select: {
-      id: true,
-      status: true,
-      reason: true,
-      appointmentDate: true,
-      patient: {
-        select: {
-          firstName: true,
-          lastName: true,
-          phone: true
-        }
-      },
-      doctor: {
-        select: {
-          name: true
-        }
-      }
-    }
-  });
-}
-
 // ==================== TODAY'S APPOINTMENTS ====================
 
 export async function findTodayAppointments(
@@ -664,7 +363,7 @@ export async function findTodayAppointments(
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
 
-  const where = {
+  const where: Prisma.AppointmentWhereInput = {
     clinicId,
     appointmentDate: {
       gte: today,
@@ -708,7 +407,7 @@ export async function findTodayAppointments(
         }
       }
     },
-    orderBy: { time: 'asc' }
+    orderBy: [{ appointmentDate: 'asc' }, { time: 'asc' }]
   });
 }
 
@@ -729,14 +428,14 @@ export async function findUpcomingAppointments(
   const endDate = new Date(now);
   endDate.setDate(endDate.getDate() + daysAhead);
 
-  const where = {
+  const where: Prisma.AppointmentWhereInput = {
     clinicId,
     appointmentDate: {
       gte: now,
       lte: endDate
     },
     status: {
-      in: ['SCHEDULED', 'PENDING', 'CONFIRMED'] as AppointmentStatus[]
+      in: ['SCHEDULED', 'CONFIRMED'] as AppointmentStatus[]
     },
     isDeleted: false,
     ...(options?.doctorId && { doctorId: options.doctorId }),
@@ -833,6 +532,114 @@ export async function findAppointmentsForMonth(
   });
 }
 
+// ==================== CREATE/UPDATE ====================
+
+export async function createAppointment(db: PrismaClient, data: Prisma.AppointmentUncheckedCreateInput) {
+  return db.appointment.create({
+    data,
+    select: {
+      id: true,
+      appointmentDate: true,
+      time: true,
+      patient: {
+        select: {
+          firstName: true,
+          lastName: true,
+          phone: true
+        }
+      },
+      doctor: {
+        select: {
+          name: true
+        }
+      }
+    }
+  });
+}
+
+export async function updateAppointment(
+  db: PrismaClient,
+  id: string,
+  clinicId: string,
+  data: Prisma.AppointmentUncheckedUpdateInput
+) {
+  return db.appointment.update({
+    where: {
+      id,
+      clinicId,
+      isDeleted: false
+    },
+    data,
+    include: {
+      patient: {
+        select: {
+          firstName: true,
+          lastName: true,
+          phone: true
+        }
+      },
+      doctor: {
+        select: {
+          name: true
+        }
+      }
+    }
+  });
+}
+
+export async function updateAppointmentStatus(
+  db: PrismaClient,
+  id: string,
+  clinicId: string,
+  status: AppointmentStatus,
+  reason?: string
+) {
+  return db.appointment.update({
+    where: {
+      id,
+      clinicId
+    },
+    data: {
+      status,
+      ...(reason && { cancellationReason: reason }),
+      updatedAt: new Date()
+    },
+    select: {
+      id: true,
+      status: true,
+      reason: true,
+      appointmentDate: true,
+      patient: {
+        select: {
+          firstName: true,
+          lastName: true,
+          phone: true
+        }
+      },
+      doctor: {
+        select: {
+          name: true
+        }
+      }
+    }
+  });
+}
+
+// ==================== SOFT DELETE ====================
+
+export async function softDeleteAppointment(db: PrismaClient, id: string, clinicId: string, _deletedById: string) {
+  return db.appointment.update({
+    where: {
+      id,
+      clinicId
+    },
+    data: {
+      isDeleted: true,
+      deletedAt: new Date()
+    }
+  });
+}
+
 export async function deletePermanently(db: PrismaClient, id: string) {
   return db.appointment.delete({
     where: {
@@ -840,163 +647,112 @@ export async function deletePermanently(db: PrismaClient, id: string) {
     }
   });
 }
-export async function findBookedTimes(db: PrismaClient | Prisma.TransactionClient, doctorId: string, date: Date) {
-  // Normalize date to start and end of day to ensure query coverage
-  const startOfDay = new Date(date);
-  startOfDay.setHours(0, 0, 0, 0);
 
-  const endOfDay = new Date(date);
-  endOfDay.setHours(23, 59, 59, 999);
-
-  return db.appointment.findMany({
+export async function deleteAllForClinic(db: PrismaClient, clinicId: string) {
+  const result = await db.appointment.deleteMany({
     where: {
-      doctorId,
-      appointmentDate: {
-        gte: startOfDay,
-        lte: endOfDay
-      },
-      // Only count appointments that aren't cancelled or deleted
-      status: {
-        notIn: ['CANCELLED']
-      },
-      isDeleted: false
-    },
-    select: {
-      time: true // Only select what we need to minimize payload
+      clinicId
     }
   });
-}
-// ==================== STATISTICS ====================
-
-export interface AppointmentStats {
-  averagePerDay?: number;
-  byStatus: Array<{
-    status: AppointmentStatus;
-    count: number;
-  }>;
-  revenue?: number;
-  today: number;
-  total: number;
-  upcoming: number;
+  return result.count;
 }
 
-export async function getAppointmentStats(
+// ==================== CONFLICT CHECK ====================
+
+export async function findConflictingAppointments(
   db: PrismaClient,
+  doctorId: string,
   clinicId: string,
-  options?: {
-    fromDate?: Date;
-    toDate?: Date;
-  }
-): Promise<AppointmentStats> {
-  const where = {
-    clinicId,
-    isDeleted: false,
-    ...(options?.fromDate || options?.toDate
-      ? {
-          appointmentDate: {
-            ...(options?.fromDate && { gte: options.fromDate }),
-            ...(options?.toDate && { lte: options.toDate })
-          }
-        }
-      : {})
-  };
+  appointmentDate: Date,
+  time: string,
+  duration: number,
+  excludeId?: string
+) {
+  // Parse the time string (format: "HH:mm")
+  const [hours, minutes] = time.split(':').map(Number);
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
+  const appointmentDateTime = new Date(appointmentDate);
+  appointmentDateTime.setHours(hours ?? 0, minutes ?? 0, 0, 0);
 
-  const [total, byStatus, upcoming, todayCount, revenue] = await Promise.all([
-    db.appointment.count({ where }),
+  const startTime = new Date(appointmentDateTime);
+  startTime.setMinutes(startTime.getMinutes() - 30); // 30 min buffer
 
-    db.appointment.groupBy({
-      by: ['status'],
-      where,
-      _count: {
-        status: true
-      }
-    }),
-
-    db.appointment.count({
-      where: {
-        ...where,
-        appointmentDate: { gte: new Date() },
-        status: { in: ['SCHEDULED', 'PENDING', 'COMPLETED'] }
-      }
-    }),
-
-    db.appointment.count({
-      where: {
-        ...where,
-        appointmentDate: {
-          gte: today,
-          lt: tomorrow
-        }
-      }
-    }),
-
-    db.appointment.aggregate({
-      where: {
-        ...where,
-        status: { notIn: ['CANCELLED', 'NO_SHOW'] }
-      },
-      _sum: {
-        appointmentPrice: true
-      }
-    })
-  ]);
-
-  const daysDiff =
-    options?.fromDate && options?.toDate
-      ? Math.ceil((options.toDate.getTime() - options.fromDate.getTime()) / (1000 * 60 * 60 * 24))
-      : 30;
-
-  return {
-    total,
-    byStatus: byStatus.map(item => ({
-      status: item.status as AppointmentStatus,
-      count: item._count.status
-    })),
-    upcoming,
-    today: todayCount,
-    revenue: toNumber(revenue._sum.appointmentPrice) || 0,
-    averagePerDay: total / daysDiff
-  };
-}
-
-// ==================== AVAILABLE TIMES (PURE QUERY) ====================
-
-export async function findBookedAppointmentTimes(db: PrismaClient, doctorId: string, clinicId: string, date: Date) {
-  const startOfDay = new Date(date);
-  startOfDay.setHours(0, 0, 0, 0);
-
-  const endOfDay = new Date(date);
-  endOfDay.setHours(23, 59, 59, 999);
+  const endTime = new Date(appointmentDateTime);
+  endTime.setMinutes(endTime.getMinutes() + duration + 30); // appointment + buffer
 
   return db.appointment.findMany({
     where: {
       doctorId,
       clinicId,
       appointmentDate: {
-        gte: startOfDay,
-        lte: endOfDay
+        gte: startTime,
+        lte: endTime
       },
       status: { notIn: ['CANCELLED', 'NO_SHOW'] },
-      isDeleted: false
+      isDeleted: false,
+      NOT: excludeId ? { id: excludeId } : undefined
     },
     select: {
-      time: true,
+      id: true,
       appointmentDate: true,
+      time: true,
       patient: {
         select: {
           firstName: true,
           lastName: true
         }
       }
-    },
-    orderBy: { time: 'asc' }
+    }
   });
 }
+
+export async function checkAppointmentOverlap(
+  db: PrismaClient,
+  doctorId: string,
+  clinicId: string,
+  appointmentDate: Date,
+  time: string,
+  duration: number,
+  excludeId?: string
+): Promise<boolean> {
+  const conflicts = await findConflictingAppointments(
+    db,
+    doctorId,
+    clinicId,
+    appointmentDate,
+    time,
+    duration,
+    excludeId
+  );
+  return conflicts.length > 0;
+}
+
+// ==================== BOOKED TIMES ====================
+
+export async function findBookedTimes(db: PrismaClient | Prisma.TransactionClient, doctorId: string, date: Date) {
+  const startOfDay = new Date(date);
+  startOfDay.setHours(0, 0, 0, 0);
+
+  const endOfDay = new Date(date);
+  endOfDay.setHours(23, 59, 59, 999);
+
+  return db.appointment.findMany({
+    where: {
+      doctorId,
+      appointmentDate: {
+        gte: startOfDay,
+        lte: endOfDay
+      },
+      status: { notIn: ['CANCELLED'] },
+      isDeleted: false
+    },
+    select: {
+      time: true
+    }
+  });
+}
+
+// ==================== DOCTOR SCHEDULE ====================
 
 export async function findDoctorSchedule(db: PrismaClient, doctorId: string, clinicId: string) {
   return db.doctor.findUnique({
@@ -1021,67 +777,166 @@ export async function findDoctorSchedule(db: PrismaClient, doctorId: string, cli
   });
 }
 
-// ==================== CONFLICT CHECK ====================
+// ==================== VALIDATION ====================
 
-export async function findConflictingAppointments(
+export async function validateDoctorAvailability(
   db: PrismaClient,
   doctorId: string,
   clinicId: string,
-  appointmentDate: Date,
-  time: string,
-  excludeId?: string
-) {
-  // Parse the time string (assuming format like "09:00")
-  const [hours, minutes] = time.split(':').map(Number);
+  appointmentDate: Date
+): Promise<boolean> {
+  const dayOfWeek = appointmentDate.toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase();
+  const time = appointmentDate.toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  });
 
-  const appointmentDateTime = new Date(appointmentDate);
-  appointmentDateTime.setHours(hours ?? 0, minutes, 0, 0);
-
-  const startBuffer = new Date(appointmentDateTime);
-  startBuffer.setMinutes(startBuffer.getMinutes() - 30);
-
-  const endBuffer = new Date(appointmentDateTime);
-  endBuffer.setMinutes(endBuffer.getMinutes() + 30);
-
-  return db.appointment.findMany({
-    where: {
-      doctorId,
-      clinicId,
-      appointmentDate: {
-        gte: startBuffer,
-        lte: endBuffer
-      },
-      status: { notIn: ['CANCELLED', 'NO_SHOW'] },
-      isDeleted: false,
-      NOT: excludeId ? { id: excludeId } : undefined
-    },
+  const doctor = await db.doctor.findUnique({
+    where: { id: doctorId, clinicId },
     select: {
-      id: true,
-      appointmentDate: true,
-      time: true,
-      patient: {
+      workingDays: {
+        where: {
+          day: dayOfWeek
+        },
         select: {
-          firstName: true,
-          lastName: true
+          startTime: true,
+          endTime: true
         }
       }
     }
   });
+
+  if (!doctor || doctor.workingDays.length === 0) {
+    return false;
+  }
+
+  const workingDay = doctor.workingDays[0];
+  return !!workingDay && time >= workingDay.startTime && time <= workingDay.endTime;
 }
 
-// ==================== SOFT DELETE ====================
+// ==================== STATISTICS ====================
 
-export async function softDeleteAppointment(db: PrismaClient, id: string, clinicId: string) {
-  return db.appointment.update({
-    where: {
-      id,
-      clinicId
-    },
-    data: {
-      isDeleted: true,
-      deletedAt: new Date()
+export interface AppointmentStats {
+  averagePerDay?: number;
+  byStatus: Array<{
+    status: AppointmentStatus;
+    count: number;
+  }>;
+  revenue: number;
+  today: number;
+  total: number;
+  upcoming: number;
+}
+
+export async function getAppointmentStats(
+  db: PrismaClient,
+  clinicId: string,
+  options?: {
+    fromDate?: Date;
+    toDate?: Date;
+    period?: 'day' | 'week' | 'month' | 'year';
+  }
+): Promise<AppointmentStats> {
+  const now = new Date();
+  let fromDate = options?.fromDate;
+  let toDate = options?.toDate;
+
+  if (options?.period && !fromDate && !toDate) {
+    switch (options.period) {
+      case 'day':
+        fromDate = startOfDay(now);
+        toDate = endOfDay(now);
+        break;
+      case 'week':
+        fromDate = subDays(now, 7);
+        toDate = now;
+        break;
+      case 'month':
+        fromDate = subMonths(now, 1);
+        toDate = now;
+        break;
+      case 'year':
+        fromDate = subMonths(now, 12);
+        toDate = now;
+        break;
+      default:
+        fromDate = subMonths(now, 1);
+        toDate = now;
     }
-  });
+  }
+
+  const where: Prisma.AppointmentWhereInput = {
+    clinicId,
+    isDeleted: false,
+    ...(fromDate || toDate
+      ? {
+          appointmentDate: {
+            ...(fromDate && { gte: fromDate }),
+            ...(toDate && { lte: toDate })
+          }
+        }
+      : {})
+  };
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  const [total, byStatus, upcoming, todayCount, revenue] = await Promise.all([
+    db.appointment.count({ where }),
+
+    db.appointment.groupBy({
+      by: ['status'],
+      where,
+      _count: {
+        status: true
+      }
+    }),
+
+    db.appointment.count({
+      where: {
+        ...where,
+        appointmentDate: { gte: now },
+        status: { in: ['SCHEDULED', 'PENDING'] }
+      }
+    }),
+
+    db.appointment.count({
+      where: {
+        ...where,
+        appointmentDate: {
+          gte: today,
+          lt: tomorrow
+        }
+      }
+    }),
+
+    db.appointment.aggregate({
+      where: {
+        ...where,
+        status: { notIn: ['CANCELLED', 'NO_SHOW'] }
+      },
+      _sum: {
+        appointmentPrice: true
+      }
+    })
+  ]);
+
+  const daysDiff = fromDate && toDate ? Math.ceil((toDate.getTime() - fromDate.getTime()) / (1000 * 60 * 60 * 24)) : 30;
+
+  return {
+    total,
+    byStatus: byStatus.map(item => ({
+      status: item.status as AppointmentStatus,
+      count: item._count.status
+    })),
+    upcoming,
+    today: todayCount,
+    revenue: toNumber(revenue._sum.appointmentPrice) || 0,
+    averagePerDay: total / daysDiff
+  };
 }
 
 // ==================== BATCH OPERATIONS ====================
@@ -1125,121 +980,83 @@ export async function batchUpdateAppointmentStatus(
     },
     data: {
       status,
-      ...(reason && { reason }),
+      ...(reason && { cancellationReason: reason }),
       updatedAt: new Date()
     }
   });
 }
 
-// ==================== VALIDATION ====================
+// ==================== COUNTS ====================
 
-export async function checkAppointmentOverlap(
+export async function countAppointments(
   db: PrismaClient,
-  doctorId: string,
   clinicId: string,
-  appointmentDate: Date,
-  excludeId?: string
-): Promise<boolean> {
-  const startOfDay = new Date(appointmentDate);
-  startOfDay.setHours(0, 0, 0, 0);
-
-  const endOfDay = new Date(appointmentDate);
-  endOfDay.setHours(23, 59, 59, 999);
-
-  const count = await db.appointment.count({
-    where: {
-      doctorId,
-      clinicId,
-      appointmentDate: {
-        gte: startOfDay,
-        lte: endOfDay
-      },
-      status: { notIn: ['CANCELLED', 'NO_SHOW'] },
-      isDeleted: false,
-      NOT: excludeId ? { id: excludeId } : undefined
-    }
-  });
-
-  return count > 0;
-}
-
-export async function validateDoctorAvailability(
-  db: PrismaClient,
-  doctorId: string,
-  clinicId: string,
-  appointmentDate: Date
-): Promise<boolean> {
-  const dayOfWeek = appointmentDate.toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase();
-  const time = appointmentDate.toLocaleTimeString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false
-  });
-
-  const doctor = await db.doctor.findUnique({
-    where: { id: doctorId, clinicId },
-    select: {
-      workingDays: {
-        where: {
-          day: dayOfWeek
-        },
-        select: {
-          startTime: true,
-          endTime: true
-        }
-      }
-    }
-  });
-
-  if (!doctor || doctor.workingDays.length === 0) {
-    return false;
+  options?: {
+    startDate?: Date;
+    endDate?: Date;
+    status?: AppointmentStatus[];
   }
+) {
+  const where: Prisma.AppointmentWhereInput = {
+    clinicId,
+    isDeleted: false,
+    ...(options?.startDate || options?.endDate
+      ? {
+          appointmentDate: {
+            ...(options.startDate && { gte: options.startDate }),
+            ...(options.endDate && { lte: options.endDate })
+          }
+        }
+      : {}),
+    ...(options?.status?.length
+      ? {
+          status: { in: options.status }
+        }
+      : {})
+  };
 
-  const workingDay = doctor.workingDays[0];
-  return !!workingDay && time >= workingDay.startTime && time <= workingDay.endTime;
+  return db.appointment.count({ where });
 }
 
-/**
- * 📦 Grouped Export for convenience
- */
+// ==================== GROUPED EXPORT ====================
+
 export const appointmentQueries = {
-  // Single Appointment
+  // Single
   findById: findAppointmentById,
   findByIdWithMedical: findAppointmentByIdWithMedical,
-  softDelete: softDeleteAppointment,
 
-  // List Appointments
-  findByClinic: findAppointmentsByClinic,
+  // Lists
+  find: findAppointments,
   findByPatient: findAppointmentsByPatient,
   findByDoctor: findAppointmentsByDoctor,
+
+  // Time-based
+  findToday: findTodayAppointments,
+  findUpcoming: findUpcomingAppointments,
+  findForMonth: findAppointmentsForMonth,
 
   // Create/Update
   create: createAppointment,
   update: updateAppointment,
   updateStatus: updateAppointmentStatus,
 
-  // Today's & Upcoming
-  findToday: findTodayAppointments,
-  findUpcoming: findUpcomingAppointments,
+  // Delete
+  softDelete: softDeleteAppointment,
+  deletePermanently,
+  deleteAllForClinic,
 
-  // Calendar Month View
-  findForMonth: findAppointmentsForMonth,
-
-  // Statistics
-  getStats: getAppointmentStats,
-
-  // Available Times
-  findBookedTimes: findBookedAppointmentTimes,
+  // Availability
+  findBookedTimes,
   findDoctorSchedule,
-
-  // Conflict Check
   findConflicting: findConflictingAppointments,
-
-  // Batch Operations
-  findByIds: findAppointmentsByIds,
-  batchUpdateStatus: batchUpdateAppointmentStatus,
-
-  // Validation
   checkOverlap: checkAppointmentOverlap,
-  validateDoctorAvailability
+  validateDoctorAvailability,
+
+  // Stats
+  getStats: getAppointmentStats,
+  count: countAppointments,
+
+  // Batch
+  findByIds: findAppointmentsByIds,
+  batchUpdateStatus: batchUpdateAppointmentStatus
 } as const;

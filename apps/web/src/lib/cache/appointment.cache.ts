@@ -1,6 +1,7 @@
 // src/modules/appointment/appointment.cache.ts
 'use cache';
 
+import type { AppointmentStatus, AppointmentType } from '@naroto/db';
 import { appointmentService } from '@naroto/db/services/appointment.service';
 import { cacheLife, cacheTag } from 'next/cache';
 
@@ -14,6 +15,38 @@ import { CACHE_TAGS } from './utils/tags';
  * - NO business logic
  * - Calls service layer
  */
+
+export async function getCachedAppointments(
+  clinicId: string,
+  filter: {
+    startDate?: Date;
+    endDate?: Date;
+    patientId?: string;
+    doctorId?: string;
+    status?: AppointmentStatus[];
+    type?: AppointmentType[];
+    page: number;
+    limit: number;
+  }
+) {
+  'use cache';
+
+  cacheTag(CACHE_TAGS.appointment.byClinic(clinicId));
+  cacheTag(CACHE_TAGS.appointment.byDate(filter.startDate?.toISOString() || ''));
+  cacheLife(CACHE_PROFILES.medicalShort);
+
+  return appointmentService.getAppointments(clinicId, filter);
+}
+
+export async function getCachedAvailableSlots(clinicId: string, doctorId: string, date: Date, _duration: number) {
+  'use cache';
+
+  cacheTag(`slots:clinic:${clinicId}:doctor:${doctorId}:date:${date.toISOString()}`);
+  cacheLife(CACHE_PROFILES.realtime);
+
+  // Service method expects (doctorId, date)
+  return appointmentService.getAvailableTimes(doctorId, date);
+}
 
 // ==================== TODAY'S APPOINTMENTS ====================
 export async function getCachedTodayAppointments(clinicId: string) {

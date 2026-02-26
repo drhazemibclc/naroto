@@ -1,4 +1,3 @@
-import type { AnyRouter } from '@trpc/server';
 import { z } from 'zod';
 
 import { createTRPCRouter, protectedProcedure } from '..';
@@ -74,7 +73,7 @@ type PaymentWithRelations = {
   } | null;
 };
 
-export const activityRouter: AnyRouter = createTRPCRouter({
+export const activityRouter = createTRPCRouter({
   /**
    * Get recent activity feed for dashboard
    */
@@ -266,4 +265,4 @@ export const activityRouter: AnyRouter = createTRPCRouter({
 });
 
 // Export type for use in components
-export type ActivityItem = Awaited<ReturnType<typeof activityRouter.recent>>[number];
+export type ActivityItem = Awaited<ReturnType<(typeof activityRouter)['recent']>>[number];

@@ -1,6 +1,6 @@
-import type { AppointmentStatus, PaymentStatus, ReminderStatus } from '@generated/browser';
 import { z } from 'zod';
 
+import type { AppointmentStatus, PaymentStatus, ReminderStatus } from '../../generated/browser';
 import type { workingDaySchema } from './doctor.schema';
 import { clinicIdSchema, dateSchema, emailSchema, hexColorSchema, idSchema, pastDateSchema } from './helpers/enums';
 
@@ -163,7 +163,8 @@ export const appointmentStatusLabels: Record<AppointmentStatus, string> = {
   SCHEDULED: 'Scheduled',
   CANCELLED: 'Cancelled',
   COMPLETED: 'Completed',
-  NO_SHOW: 'No Show'
+  NO_SHOW: 'No Show',
+  CHECKED_IN: 'Checked In'
 };
 
 export const paymentStatusLabels: Record<PaymentStatus, string> = {

@@ -1,13 +1,13 @@
+import { z } from 'zod';
+
 import {
   type Appointment,
   AppointmentStatus,
-  type AppointmentType,
+  AppointmentType,
   type Doctor,
   type Patient,
   type Service
-} from '@generated/browser';
-import { z } from 'zod';
-
+} from '../../generated/browser';
 import {
   appointmentStatusSchema,
   appointmentTypeSchema,
@@ -16,6 +16,49 @@ import {
   idSchema,
   paymentMethodSchema
 } from './helpers/enums';
+
+// Base schemas
+export const AppointmentStatusSchema = z.enum(AppointmentStatus);
+
+export const AppointmentTypeSchema = z.enum(AppointmentType);
+
+// Create appointment schema
+export const CreateAppointmentSchema = z.object({
+  patientId: z.string().min(1, 'Patient is required'),
+  doctorId: z.string().min(1, 'Doctor is required'),
+  clinicId: z.string().min(1, 'Clinic is required'),
+  appointmentDate: z.date(),
+  duration: z.number().min(5, 'Duration must be at least 5 minutes'),
+  type: AppointmentTypeSchema,
+  status: AppointmentStatusSchema.default('SCHEDULED'),
+  reason: z.string().optional(),
+  notes: z.string().optional(),
+  reminders: z
+    .object({
+      email: z.boolean().default(true),
+      sms: z.boolean().default(false),
+      minutesBefore: z.number().default(30)
+    })
+    .optional()
+});
+
+// Update appointment schema
+export const UpdateAppointmentSchema = CreateAppointmentSchema.partial().extend({
+  id: z.string()
+});
+
+// Filter schema
+export const AppointmentFilterSchema = z.object({
+  startDate: z.date().optional(),
+  endDate: z.date().optional(),
+  patientId: z.string().optional(),
+  doctorId: z.string().optional(),
+  status: z.array(AppointmentStatusSchema).optional(),
+  type: z.array(AppointmentTypeSchema).optional(),
+  search: z.string().optional(),
+  page: z.number().min(1).default(1),
+  limit: z.number().min(1).max(100).default(20)
+});
 
 export const AppointmentListSchema = z.object({
   clinicId: z.string(),
@@ -42,6 +85,8 @@ export const AppointmentCreateSchema = z.object({
   serviceId: z.string().optional(),
   type: appointmentTypeSchema,
   appointmentDate: z.date(),
+  // duration is required for scheduling and overlap checks
+  duration: z.number().min(5, 'Duration must be at least 5 minutes'),
   time: z.string().optional(),
   status: appointmentStatusSchema.optional(),
   appointmentPrice: z.number().optional(),
@@ -56,6 +101,7 @@ export const AppointmentUpdateSchema = z.object({
   serviceId: z.string().optional(),
   type: appointmentTypeSchema,
   appointmentDate: z.date().optional(),
+  duration: z.number().min(5, 'Duration must be at least 5 minutes').optional(),
   time: z.string().optional(),
   status: appointmentStatusSchema.optional(),
   appointmentPrice: z.number().optional(),
@@ -136,7 +182,7 @@ export type UpdateAppointmentInput = z.infer<typeof AppointmentUpdateSchema>;
 export type AppointmentByIdInput = z.infer<typeof AppointmentByIdSchema>;
 export type AppointmentActionInput = z.infer<typeof AppointmentActionSchema>;
 export type BillCreateInput = z.infer<typeof BillCreateSchema>;
-
+export type AppointmentFilter = z.infer<typeof AppointmentFilterSchema>;
 export type AppointmentStatusType = z.infer<typeof appointmentStatusSchema>;
 export const getForMonthInputSchema = z.object({
   clinicId: z.string(),

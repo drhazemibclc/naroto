@@ -1,7 +1,7 @@
-import type { PrismaClient } from '@generated/client';
 import { addDays, endOfDay, endOfMonth, startOfDay, startOfMonth, subDays, subMonths } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 
+import type { PrismaClient } from '../../generated/client';
 import type { UserRole } from '../types';
 
 const TIMEZONE = 'Africa/Cairo';

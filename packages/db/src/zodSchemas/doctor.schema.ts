@@ -1,6 +1,6 @@
-import { UserRole } from '@generated/browser';
 import { z } from 'zod';
 
+import { UserRole } from '../../generated/browser';
 import { NullableDecimal } from './helpers';
 import { availabilityStatusSchema, decimalSchema, jobTypeSchema, statusSchema } from './helpers/enums';
 

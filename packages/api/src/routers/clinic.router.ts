@@ -1,4 +1,6 @@
+import { appointmentService } from '@naroto/db/services/appointment.service';
 import clinicService, { dashboardService } from '@naroto/db/services/clinic.service';
+import { vaccinationService } from '@naroto/db/services/vaccination.service';
 import {
   clinicCreateSchema,
   clinicGetByIdSchema,
@@ -89,7 +91,7 @@ export const clinicRouter = createTRPCRouter({
       });
     }
 
-    return dashboardService.getTodaySchedule(clinicId);
+    return appointmentService.getTodayAppointments(clinicId);
   }),
 
   getUpcomingImmunizations: protectedProcedure.query(async ({ ctx }) => {
@@ -101,18 +103,6 @@ export const clinicRouter = createTRPCRouter({
       });
     }
 
-    return dashboardService.getUpcomingImmunizations(clinicId);
-  }),
-
-  getMonthlyPerformance: protectedProcedure.query(async ({ ctx }) => {
-    const clinicId = ctx.session?.user.clinic?.id;
-    if (!clinicId) {
-      throw new TRPCError({
-        code: 'UNAUTHORIZED',
-        message: 'User must be associated with a clinic.'
-      });
-    }
-
-    return dashboardService.getMonthlyPerformance(clinicId);
+    return vaccinationService.getUpcomingImmunizations(clinicId);
   })
 });

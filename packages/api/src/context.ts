@@ -11,7 +11,7 @@ export type Context = {
   headers: Headers;
 };
 
-export async function createContext(req: NextRequest): Promise<Context> {
+export async function createTRPCContext(req: NextRequest): Promise<Context> {
   const session = (await auth.api.getSession({ headers: req.headers })) as Session | null;
 
   const user = (session?.user ?? null) as User | null;
@@ -25,3 +25,5 @@ export async function createContext(req: NextRequest): Promise<Context> {
     headers: (await headers()) as Headers
   };
 }
+
+export type ContextType = ReturnType<typeof createTRPCContext>;

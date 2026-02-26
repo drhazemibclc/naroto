@@ -8,11 +8,11 @@
  * - Transaction integrity
  */
 
-import type { Prisma, PrismaClient } from '@generated/client';
 import { logger } from '@naroto/logger';
 import { CACHE_KEYS, CACHE_TTL } from '@naroto/redis/cache-keys';
 import { z } from 'zod';
 
+import type { Prisma, PrismaClient } from '../../generated/client';
 import type { ClinicUpdateInput, RatingCreateInput } from '../../generated/models';
 import { prisma } from '../client';
 import { AppError, NotFoundError, ValidationError } from '../error';
@@ -777,6 +777,7 @@ export class DashboardService {
   async getRecentAppointments(clinicId: string, limit = 10) {
     const validatedClinicId = z.uuid().parse(clinicId);
     const validatedLimit = z.number().int().min(1).max(50).parse(limit);
+    const validatedOffset = 0; 
 
     const cacheKey = CACHE_KEYS.RECENT_APPOINTMENTS(validatedClinicId, validatedLimit);
 
@@ -786,10 +787,7 @@ export class DashboardService {
         if (cached) return cached;
       }
 
-      const appointments = await appointmentRepo.findAppointmentsByClinic(this.db, {
-        clinicId: validatedClinicId,
-        limit: validatedLimit
-      });
+      const appointments = await appointmentRepo.findRecentAppointments(this.db, validatedClinicId, validatedLimit, validatedOffset);
 
       if (this.CACHE_ENABLED) {
         await cacheService.set(cacheKey, appointments, CACHE_TTL.APPOINTMENT);
@@ -819,7 +817,7 @@ export class DashboardService {
         if (cached) return cached;
       }
 
-      const doctors = await appointmentRepo.getTodaySchedule(this.db, validatedClinicId);
+      const doctors = await appointmentRepo.findTodayAppointments(this.db, validatedClinicId);
       const today = new Date().toLocaleString('en-US', { weekday: 'long' });
 
       const schedule = doctors.map(d => ({

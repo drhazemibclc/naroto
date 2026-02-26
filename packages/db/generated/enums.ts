@@ -103,6 +103,7 @@ export type Gender = (typeof Gender)[keyof typeof Gender]
 export const AppointmentStatus = {
   PENDING: 'PENDING',
   SCHEDULED: 'SCHEDULED',
+  CHECKED_IN: 'CHECKED_IN',
   CANCELLED: 'CANCELLED',
   COMPLETED: 'COMPLETED',
   NO_SHOW: 'NO_SHOW'

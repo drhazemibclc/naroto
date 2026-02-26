@@ -2,14 +2,13 @@ import { clinicService } from '@naroto/db/services/clinic.service';
 import { adminService, doctorService } from '@naroto/db/services/index';
 import { DeleteInputSchema, StaffAuthSchema } from '@naroto/db/zodSchemas/admin.schema';
 import { CreateNewDoctorInputSchema } from '@naroto/db/zodSchemas/doctor.schema';
-import type { AnyRouter } from '@trpc/server';
 import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
 
 import { adminProcedure, createTRPCRouter } from '..';
 // ✅ Import the service directly, remove web cache imports
 
-export const adminRouter: AnyRouter = createTRPCRouter({
+export const adminRouter = createTRPCRouter({
   // ==================== QUERIES (READ) ====================
 
   getDashboardStats: adminProcedure.query(async ({ ctx }) => {

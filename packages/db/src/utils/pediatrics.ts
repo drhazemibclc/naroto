@@ -1,4 +1,4 @@
-import type { Service } from '@generated/browser';
+import type { Service } from '../../generated/browser';
 
 // utils/pediatric-services.ts
 export const PEDIATRIC_SERVICE_RECOMMENDATIONS = [

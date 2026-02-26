@@ -27,7 +27,14 @@ export interface StaffCreateInput {
 }
 
 // ==================== READ OPERATIONS ====================
-
+export async function deleteAllForClinic(db: PrismaClient, clinicId: string) {
+  const result = await db.staff.deleteMany({
+    where: {
+      clinicId
+    }
+  });
+  return result.count;
+}
 export async function findStaffList(db: PrismaClient, clinicId: string) {
   return db.staff.findMany({
     where: { clinicId, deletedAt: null },

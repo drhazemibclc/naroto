@@ -10,6 +10,10 @@
 
 import { randomUUID } from 'node:crypto';
 
+import { logger } from '@naroto/logger';
+import { CACHE_KEYS, CACHE_TTL } from '@naroto/redis/cache-keys';
+import { z } from 'zod';
+
 import type {
   AppointmentStatus,
   Gender,
@@ -17,11 +21,7 @@ import type {
   Prisma,
   PrismaClient,
   Status
-} from '@generated/client';
-import { logger } from '@naroto/logger';
-import { CACHE_KEYS, CACHE_TTL } from '@naroto/redis/cache-keys';
-import { z } from 'zod';
-
+} from '../../generated/client';
 import { prisma } from '../client';
 import { AppError, ConflictError, NotFoundError, ValidationError } from '../error';
 import * as appointmentRepo from '../repositories/appointment.repo';

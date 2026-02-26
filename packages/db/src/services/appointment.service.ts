@@ -10,13 +10,14 @@
 
 import { randomUUID } from 'node:crypto';
 
-import type { AppointmentStatus, Prisma, PrismaClient } from '@generated/client';
 import { logger } from '@naroto/logger';
+import redis from '@naroto/redis';
 import { CACHE_KEYS, CACHE_TTL } from '@naroto/redis/cache-keys';
 import { isBefore, setHours, setMinutes, setSeconds } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 import { z } from 'zod';
 
+import type { AppointmentStatus, Prisma, PrismaClient } from '../../generated/client';
 import { prisma } from '../client';
 import { AppError, ConflictError, NotFoundError, ValidationError } from '../error';
 import * as appointmentRepo from '../repositories/appointment.repo';
@@ -25,6 +26,8 @@ import * as patientRepo from '../repositories/patient.repo';
 import { generateTimeSlots } from '../utils/time';
 import {
   AppointmentCreateSchema,
+  type AppointmentFilter,
+  AppointmentFilterSchema,
   AppointmentUpdateSchema,
   AppointmentUpdateStatusSchema,
   type CreateAppointmentInput,
@@ -150,12 +153,8 @@ export class AppointmentService {
       today.setHours(0, 0, 0, 0);
       const tomorrow = new Date(today);
       tomorrow.setDate(today.getDate() + 1);
-      const dateRange = {
-        todayStart: today,
-        todayEnd: tomorrow
-      };
 
-      const appointments = await appointmentRepo.findTodaySchedule(this.db, validatedClinicId, dateRange);
+      const appointments = await appointmentRepo.findTodaySchedule(this.db, validatedClinicId, today);
 
       if (this.CACHE_ENABLED) {
         await cacheService.set(cacheKey, appointments, CACHE_TTL.APPOINTMENT);
@@ -452,9 +451,10 @@ export class AppointmentService {
             tx as unknown as PrismaClient,
             validated.doctorId,
             validated.clinicId,
-            appointmentDateTime
+            validated.appointmentDate,
+            validated.time ?? '00:00',
+            validated.duration
           );
-
           if (isOverlapping) {
             throw new ConflictError('This time slot overlaps with another appointment');
           }
@@ -490,11 +490,10 @@ export class AppointmentService {
       })
       .then(async appointment => {
         // AFTER transaction succeeds, invalidate caches
-        await this.invalidateAppointmentCaches(appointment.id, {
+        await this.invalidateAppointmentCaches(validated.clinicId, {
           patientId: validated.patientId,
           doctorId: validated.doctorId,
-          clinicId,
-          date: validated.appointmentDate
+          appointmentDate: validated.appointmentDate
         });
 
         return appointment;
@@ -540,16 +539,17 @@ export class AppointmentService {
 
             // Check for overlaps if date/time changed
             if (validated.appointmentDate || validated.time || validated.doctorId) {
-              const appointmentDateTime = this.buildAppointmentDateTime(
-                validated.appointmentDate || existing.appointmentDate,
-                validated.time || existing.time || ''
-              );
+              // appointmentDateTime is not needed here (overlap check uses discrete fields)
+              // determine numeric duration using validated value or existing record (default 0)
+              const durationToCheck = validated.duration ?? existing.duration ?? 0;
 
               const isOverlapping = await appointmentRepo.checkAppointmentOverlap(
                 tx as unknown as PrismaClient,
                 doctorId,
                 clinicId,
-                appointmentDateTime
+                validated.appointmentDate || existing.appointmentDate,
+                validated.time || existing.time || '',
+                durationToCheck
               );
 
               if (isOverlapping) {
@@ -581,11 +581,10 @@ export class AppointmentService {
         // AFTER transaction succeeds, invalidate caches
         const existing = await appointmentRepo.findAppointmentById(this.db, validated.id, clinicId);
         if (existing) {
-          await this.invalidateAppointmentCaches(validated.id, {
+          await this.invalidateAppointmentCaches(clinicId, {
             patientId: existing.patientId,
             doctorId: existing.doctorId,
-            clinicId: existing.clinicId,
-            date: existing.appointmentDate
+            appointmentDate: existing.appointmentDate
           });
         }
 
@@ -641,8 +640,7 @@ export class AppointmentService {
           await this.invalidateAppointmentCaches(validated.id, {
             patientId: existing.patientId,
             doctorId: existing.doctorId,
-            clinicId: existing.clinicId,
-            date: existing.appointmentDate
+            appointmentDate: existing.appointmentDate
           });
         }
 
@@ -692,7 +690,7 @@ export class AppointmentService {
   /**
    * Delete an appointment (soft delete)
    */
-  async deleteAppointment(id: string, clinicId: string, permanent = false) {
+  async deleteAppointment(id: string, clinicId: string, userId: string, permanent = false) {
     const validatedId = z.uuid().parse(id);
     const validatedClinicId = z.uuid().parse(clinicId);
 
@@ -718,7 +716,8 @@ export class AppointmentService {
             result = await appointmentRepo.softDeleteAppointment(
               tx as unknown as PrismaClient,
               validatedId,
-              validatedClinicId
+              validatedClinicId,
+              userId
             );
             logger.info('Appointment soft deleted', { appointmentId: validatedId });
           }
@@ -733,11 +732,10 @@ export class AppointmentService {
         // AFTER transaction succeeds, invalidate caches
         const existing = await appointmentRepo.findAppointmentById(this.db, validatedId, clinicId);
         if (existing) {
-          await this.invalidateAppointmentCaches(validatedId, {
+          await this.invalidateAppointmentCaches(clinicId, {
             patientId: existing.patientId,
             doctorId: existing.doctorId,
-            clinicId: existing.clinicId,
-            date: existing.appointmentDate
+            appointmentDate: existing.appointmentDate
           });
         }
 
@@ -745,42 +743,207 @@ export class AppointmentService {
       });
   }
 
-  // ==================== CACHE INVALIDATION ====================
+  async getAppointments(clinicId: string, filter: AppointmentFilter) {
+    try {
+      const validated = AppointmentFilterSchema.parse(filter);
 
-  /**
-   * Invalidate all appointment-related caches
-   */
-  private async invalidateAppointmentCaches(
-    appointmentId: string,
-    context: {
-      patientId: string;
-      doctorId: string;
-      clinicId: string;
-      date: Date;
+      const { startDate, endDate, patientId, doctorId, status, type, page = 1, limit = 10 } = validated;
+
+      const offset = (page - 1) * limit;
+
+      const [appointments, total] = await Promise.all([
+        appointmentRepo.appointmentQueries.find(this.db, {
+          clinicId,
+          limit,
+          offset,
+          fromDate: startDate,
+          toDate: endDate,
+          status,
+          type,
+          patientId,
+          doctorId
+        }),
+        appointmentRepo.appointmentQueries.count(this.db, clinicId, {
+          startDate,
+          endDate,
+          status
+        })
+      ]);
+
+      return {
+        items: appointments,
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      };
+    } catch (error) {
+      if (error instanceof NotFoundError) throw error;
+      logger.error('Failed to get appointments', { error, clinicId, filter });
+      throw new AppError('Failed to retrieve appointments', {
+        code: 'APPOINTMENTS_FETCH_ERROR',
+        statusCode: 500
+      });
     }
-  ): Promise<void> {
-    if (!this.CACHE_ENABLED) return;
-
-    const keys = [
-      CACHE_KEYS.APPOINTMENT(appointmentId),
-      CACHE_KEYS.APPOINTMENT(context.clinicId),
-      CACHE_KEYS.APPOINTMENTS_MONTH(context.clinicId, context.date.getFullYear(), context.date.getMonth()),
-      CACHE_KEYS.PATIENT_APPOINTMENT(context.patientId, context.clinicId),
-      CACHE_KEYS.DOCTOR_APPOINTMENT(context.doctorId, context.clinicId),
-      CACHE_KEYS.APPOINTMENT_STATS(context.clinicId)
-    ];
-
-    // Add date range keys for ±7 days
-    for (let i = -7; i <= 7; i++) {
-      const date = new Date(context.date);
-      date.setDate(date.getDate() + i);
-      keys.push(CACHE_KEYS.DOCTOR_APPOINTMENTS_DATE(context.doctorId, date.toDateString()));
-    }
-
-    await cacheService.invalidate(...keys);
-    await cacheService.invalidateClinicCaches(context.clinicId);
   }
 
+  async cancelAppointment(id: string, userId: string, clinicId: string, reason?: string) {
+    try {
+      const existing = await appointmentRepo.appointmentQueries.findById(this.db, id, clinicId);
+      if (!existing) {
+        throw new AppError('Failed to retrieve appointments', {
+          code: 'APPOINTMENTS_FETCH_ERROR',
+          statusCode: 500
+        });
+      }
+
+      const appointment = await appointmentRepo.appointmentQueries.update(this.db, id, clinicId, {
+        status: 'CANCELLED',
+        reason,
+        updatedAt: new Date()
+      });
+
+      // Invalidate caches
+      if (this.CACHE_ENABLED) {
+        await this.invalidateAppointmentCaches(existing.clinicId, {
+          appointmentId: id,
+          appointmentDate: existing.appointmentDate,
+          patientId: existing.patientId
+        });
+      }
+
+      logger.info('Appointment cancelled', { appointmentId: id, userId, reason });
+      return appointment;
+    } catch (error) {
+      if (error instanceof NotFoundError) throw error;
+      logger.error('Failed to cancel appointment', { error, clinicId, id });
+      throw new AppError('Failed to retrieve appointments', {
+        code: 'APPOINTMENTS_FETCH_ERROR',
+        statusCode: 500
+      });
+    }
+  }
+
+  async checkInPatient(id: string, userId: string, clinicId: string) {
+    try {
+      const existing = await appointmentRepo.appointmentQueries.findById(this.db, id, clinicId);
+      if (!existing) {
+        throw new AppError('Appointment not found', {
+          code: 'APPOINTMENT_NOT_FOUND',
+          statusCode: 404
+        });
+      }
+
+      const appointment = await appointmentRepo.appointmentQueries.update(this.db, id, clinicId, {
+        status: 'CHECKED_IN' as AppointmentStatus,
+
+        updatedAt: new Date()
+      });
+
+      if (this.CACHE_ENABLED) {
+        await this.invalidateAppointmentCaches(existing.clinicId, {
+          appointmentId: id,
+          appointmentDate: existing.appointmentDate,
+          patientId: existing.patientId
+        });
+      }
+
+      logger.info('Patient checked in', { appointmentId: id, userId });
+      return appointment;
+    } catch (error) {
+      if (error instanceof NotFoundError) throw error;
+      logger.error('Failed to check in patient', { error, id, userId });
+      throw new AppError('Failed to check in patient', {
+        code: 'PATIENT_CHECK_IN_ERROR',
+        statusCode: 500
+      });
+    }
+  }
+
+  async completeAppointment(id: string, userId: string, clinicId: string, notes?: string) {
+    try {
+      const existing = await appointmentRepo.appointmentQueries.findById(this.db, id, clinicId);
+      if (!existing) {
+        throw new AppError('Failed to retrieve appointments', {
+          code: 'APPOINTMENT_NOT_FOUND',
+          statusCode: 404
+        });
+      }
+
+      const appointment = await appointmentRepo.appointmentQueries.update(this.db, id, clinicId, {
+        status: 'COMPLETED',
+        appointmentDate: new Date(),
+
+        note: notes,
+
+        updatedAt: new Date()
+      });
+
+      if (this.CACHE_ENABLED) {
+        await this.invalidateAppointmentCaches(existing.clinicId, {
+          appointmentId: id,
+          appointmentDate: existing.appointmentDate,
+          patientId: existing.patientId,
+          doctorId: existing.doctorId
+        });
+      }
+
+      logger.info('Appointment completed', { appointmentId: id, userId });
+      return appointment;
+    } catch (error) {
+      if (error instanceof NotFoundError) throw error;
+      logger.error('Failed to complete appointment', { error, id, userId });
+      throw new AppError('Failed to complete appointment', {
+        code: 'APPOINTMENT_COMPLETE_ERROR',
+        statusCode: 500
+      });
+    }
+  }
+  private async invalidateAppointmentCaches(
+    clinicId: string,
+    options?: {
+      appointmentDate: Date;
+      appointmentId?: string;
+      patientId?: string;
+      doctorId?: string;
+    }
+  ) {
+    const keys: string[] = [];
+
+    // Invalidate specific appointment
+    if (options?.appointmentId) {
+      keys.push(`${CACHE_KEYS.APPOINTMENT}${options.appointmentId}`);
+    }
+
+    // Invalidate list caches
+    keys.push(`${CACHE_KEYS.APPOINTMENT_TODAY}${clinicId}`);
+    keys.push(`${CACHE_KEYS.APPOINTMENT_STATS}${clinicId}:day`);
+    keys.push(`${CACHE_KEYS.APPOINTMENT_STATS}${clinicId}:week`);
+    keys.push(`${CACHE_KEYS.APPOINTMENT_STATS}${clinicId}:month`);
+
+    // Invalidate patient appointments if needed
+    if (options?.patientId) {
+      keys.push(`${CACHE_KEYS.PATIENT_APPOINTMENTS}${options.patientId}`);
+    }
+
+    // Invalidate doctor appointments if needed
+    if (options?.doctorId) {
+      keys.push(`${CACHE_KEYS.DOCTOR_APPOINTMENTS}${options.doctorId}`);
+    }
+
+    // Invalidate dashboard stats
+    keys.push(`${CACHE_KEYS.DASHBOARD_STATS}${clinicId}`);
+
+    try {
+      if (keys.length > 0) {
+        await redis.del(...keys);
+        logger.debug('Invalidated appointment caches', { keys });
+      }
+    } catch (error) {
+      logger.error('Failed to invalidate caches', { error, keys });
+      // Don't throw - cache invalidation failure shouldn't break the operation
+    }
+  }
   // ==================== UTILITIES ====================
 
   /**

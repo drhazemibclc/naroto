@@ -10,11 +10,11 @@
 
 import { randomUUID } from 'node:crypto';
 
-import type { AppointmentStatus, Prisma, PrismaClient } from '@generated/client';
 import { logger } from '@naroto/logger';
 import { CACHE_KEYS, CACHE_TTL } from '@naroto/redis/cache-keys';
 import { z } from 'zod';
 
+import type { AppointmentStatus, Prisma, PrismaClient } from '../../generated/client';
 import { prisma } from '../client';
 import { AppError, ConflictError, NotFoundError, ValidationError } from '../error';
 import * as doctorRepo from '../repositories/doctor.repo';

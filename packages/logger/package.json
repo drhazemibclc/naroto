@@ -17,7 +17,7 @@
     "@naroto/config": "workspace:*",
     "@sentry/node": "^10.40.0",
     "@types/express": "^5.0.6",
-    "@types/node": "^25.3.1",
+    "@types/node": "^25.3.2",
     "@types/on-headers": "^1.0.4",
     "@types/stack-trace": "^0.0.33",
     "typescript": "catalog:"

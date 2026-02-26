@@ -1,5 +1,7 @@
 // schemas/enums.ts
 
+import * as z from 'zod';
+
 import {
   AppointmentStatus,
   AppointmentType,
@@ -24,8 +26,7 @@ import {
   ServiceCategory,
   Status,
   UserRole
-} from '@generated/browser';
-import * as z from 'zod';
+} from '../../../generated/browser';
 
 // Role
 export const roleSchema = z.enum(UserRole);

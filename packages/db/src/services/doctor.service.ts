@@ -10,13 +10,13 @@
 
 import { randomUUID } from 'node:crypto';
 
-import { Prisma, type PrismaClient } from '@generated/client';
 import { logger } from '@naroto/logger';
 import { CACHE_KEYS, CACHE_TTL } from '@naroto/redis/cache-keys';
 import { isBefore, isSameDay, isValid, parseISO, set, startOfDay } from 'date-fns';
 import { format as formatTz, toZonedTime } from 'date-fns-tz';
 import { z } from 'zod';
 
+import { Prisma, type PrismaClient } from '../../generated/client';
 import { db, prisma } from '../client';
 import { ApiError, AppError, NotFoundError, ValidationError } from '../error';
 import * as doctorRepo from '../repositories/doctor.repo';

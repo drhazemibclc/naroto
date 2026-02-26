@@ -11,8 +11,8 @@
 
 'use server';
 
-import { serviceService } from '@naroto/api/services/service.service';
 import { getSession } from '@naroto/api/utils/index';
+import { serviceService } from '@naroto/db/services/service.services';
 import {
   bulkUpdateStatusSchema,
   type CreateServiceInput,
@@ -46,21 +46,21 @@ export async function createServiceAction(input: unknown) {
   const validated = ServiceCreateSchema.parse(input);
 
   // 3. Delegate to service (add clinicId from session if not provided)
-  const result = await serviceService.createService(
-    {
-      ...validated,
-      clinicId: validated.clinicId || session.user.clinic?.id
-    } as CreateServiceInput,
-    session.user.id
-  );
+  const result = await serviceService.create({
+    ...validated,
+    clinicId: validated.clinicId || session.user.clinic?.id
+  } as CreateServiceInput);
 
   // 4. Revalidate UI paths
   revalidatePath('/dashboard/services');
 
-  if (result.clinicId) {
-    revalidatePath(`/dashboard/clinics/${result.clinicId}/services`);
-    revalidateTag(CACHE_TAGS.service.byClinic(result.clinicId), 'max');
-    revalidateTag(CACHE_TAGS.clinic.dashboard(result.clinicId), 'max');
+  // some service return types don’t include `clinicId` in their definition,
+  // so extract it with a cast/guard before using it.
+  const clinicId = (result as { clinicId?: string | null }).clinicId;
+  if (clinicId) {
+    revalidatePath(`/dashboard/clinics/${clinicId}/services`);
+    revalidateTag(CACHE_TAGS.service.byClinic(clinicId), 'max');
+    revalidateTag(CACHE_TAGS.clinic.dashboard(clinicId), 'max');
   }
 
   return {
@@ -82,7 +82,7 @@ export async function updateServiceAction(id: string, input: unknown) {
   const validated = updateServiceSchema.parse({ input, id });
 
   // 3. Delegate to service
-  const result = await serviceService.updateService(validated, session.user.id);
+  const result = await serviceService.update(id, validated);
 
   // 4. Revalidate UI paths
   revalidatePath('/dashboard/services');
@@ -116,7 +116,7 @@ export async function deleteServiceAction(id: string, reason?: string) {
   });
 
   // 3. Delegate to service
-  const result = await serviceService.softDeleteService(validated.id, validated.reason, session.user.id);
+  const result = await serviceService.delete(validated.id, session.user.id);
 
   // 4. Revalidate UI paths
   revalidatePath('/dashboard/services');

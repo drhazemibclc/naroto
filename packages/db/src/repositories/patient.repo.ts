@@ -1,4 +1,4 @@
-import type { AppointmentStatus, Gender, Prisma, PrismaClient, Status } from '@generated/client';
+import type { AppointmentStatus, Gender, Prisma, PrismaClient, Status } from '../../generated/client';
 
 /**
  * 🔵 PURE QUERY LAYER
@@ -19,7 +19,14 @@ export async function countActivePatients(db: PrismaClient, clinicId: string): P
     }
   });
 }
-
+export async function deleteAllPatForClinic(db: PrismaClient, clinicId: string) {
+  const result = await db.patient.deleteMany({
+    where: {
+      clinicId
+    }
+  });
+  return result.count;
+}
 export async function searchPatients(
   db: PrismaClient,
   params: {

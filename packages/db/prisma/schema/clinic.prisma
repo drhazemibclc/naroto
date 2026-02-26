@@ -576,6 +576,7 @@ enum Gender {
 enum AppointmentStatus {
   PENDING
   SCHEDULED
+  CHECKED_IN
   CANCELLED
   COMPLETED
   NO_SHOW

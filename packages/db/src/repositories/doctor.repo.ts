@@ -24,7 +24,14 @@ export async function countActiveDoctors(db: PrismaClient, clinicId: string): Pr
   });
 }
 // Add these missing methods to doctor.repo.ts
-
+export async function deleteAllDocForClinic(db: PrismaClient, clinicId: string) {
+  const result = await db.doctor.deleteMany({
+    where: {
+      clinicId
+    }
+  });
+  return result.count;
+}
 export async function findDoctorWithAppointments(db: PrismaClient, id: string, clinicId: string) {
   return db.doctor.findUnique({
     where: { id, clinicId, isDeleted: false },

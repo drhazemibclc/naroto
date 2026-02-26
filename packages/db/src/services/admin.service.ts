@@ -10,14 +10,14 @@
 
 import { randomUUID } from 'node:crypto';
 
-import type { AppointmentStatus, PrismaClient } from '@generated/client';
-import { Prisma } from '@generated/client';
 import { logger } from '@naroto/logger';
 import { CACHE_KEYS, CACHE_TTL } from '@naroto/redis/cache-keys';
 import { addDays, endOfDay, endOfMonth, startOfDay, startOfMonth, subDays } from 'date-fns';
 import { z } from 'zod';
 
 import { ValidationError } from '..';
+import type { AppointmentStatus, PrismaClient } from '../../generated/client';
+import { Prisma } from '../../generated/client';
 import { prisma } from '../client';
 import { AppError, ConflictError, NotFoundError } from '../error';
 import * as appointmentRepo from '../repositories/appointment.repo';
@@ -44,6 +44,7 @@ import {
   staffUpdateSchema,
   statusChangeSchema
 } from '../zodSchemas';
+import type appointmentService from './appointment.service';
 import { cacheService } from './cache.service';
 
 // ==================== TYPE DEFINITIONS ====================
@@ -65,11 +66,10 @@ export interface AdminDashboardStats {
   // Growth metrics
   patientsNeedingGrowthCheck: number;
   pendingPayments: number;
+  recentAppointments: Awaited<ReturnType<typeof appointmentRepo.findRecentAppointments>>;
 
   // Lists
-  recentAppointments: Awaited<ReturnType<typeof appointmentRepo.getRecentAppointments>>;
   recentServices: Awaited<ReturnType<typeof serviceRepo.findRecentServices>>;
-
   // Appointment metrics
   todayAppointments: number;
   totalDoctors: number;
@@ -83,7 +83,7 @@ export interface AdminDashboardStats {
 export interface DashboardStatsWithRange {
   appointmentsInRange: number;
   doctorsWorkingToday: Awaited<ReturnType<typeof doctorRepo.findDoctorsWorkingOnDay>>;
-  recentAppointments: Awaited<ReturnType<typeof appointmentRepo.getRecentAppointments>>;
+  recentAppointments: Awaited<ReturnType<typeof appointmentRepo.appointmentQueries.findToday>>;
   recentServices: Awaited<ReturnType<typeof serviceRepo.findRecentServices>>;
   revenueInRange: number;
   totalDoctors: number;
@@ -135,7 +135,9 @@ export interface GrowthStats {
 export interface RealtimeStatus {
   appointmentsToday: number;
   availableDoctors: number;
-  nextAppointment: Awaited<ReturnType<typeof appointmentRepo.getTodaySchedule>>[number]['appointments'][number] | null;
+  nextAppointment:
+    | Awaited<ReturnType<typeof appointmentService.getTodayAppointments>>[number]['appointments'][number]
+    | null;
   patientsInClinic: number;
   timestamp: string;
   waitTimeEstimate: number;
@@ -210,7 +212,7 @@ export class AdminService {
         doctorRepo.countActiveDoctors(this.db, validatedClinicId),
         staffRepo.countActiveStaff?.(this.db, validatedClinicId) ?? Promise.resolve(0),
         serviceRepo.countServices?.(this.db, validatedClinicId) ?? Promise.resolve(0),
-        appointmentRepo.countAppointmentsInRange(this.db, validatedClinicId, today, tomorrow),
+        appointmentRepo.createAppointment(this.db, validatedClinicId, today, tomorrow),
         appointmentRepo.countAppointmentsByStatus(this.db, validatedClinicId, [
           'SCHEDULED',
           'CONFIRMED'
@@ -223,7 +225,8 @@ export class AdminService {
         // appointmentRepo.sumAppointmentRevenue?.(this.db, validatedClinicId, today, tomorrow) ?? Promise.resolve(0),
         patientRepo.countNewPatientsInRange(this.db, validatedClinicId, startOfCurrentMonth, endOfCurrentMonth),
         patientRepo.countActivePatients(this.db, validatedClinicId),
-        appointmentRepo.getRecentAppointments(this.db, validatedClinicId),
+        // supply offset parameter as required by the repo signature
+        appointmentRepo.findRecentAppointments(this.db, validatedClinicId, 10, 0),
         doctorRepo.findDoctorsWorkingOnDay(this.db, validatedClinicId, todayDayName, 5),
         serviceRepo.findRecentServices?.(this.db, validatedClinicId, 10, 0) ?? Promise.resolve([]),
         vaccinationRepo.findOverdueImmunizations(this.db, validatedClinicId, now, { limit: 20 }),
@@ -1377,6 +1380,46 @@ export class AdminService {
         });
       }
     });
+  }
+  async deleteData(clinicId: string, dataType: 'appointments' | 'patients' | 'doctors' | 'staff') {
+    const validatedClinicId = z.uuid().parse(clinicId);
+
+    try {
+      let deletedCount = 0;
+      switch (dataType) {
+        case 'appointments':
+          deletedCount = await appointmentRepo.deleteAllForClinic(this.db, validatedClinicId);
+          break;
+        case 'patients':
+          deletedCount = await patientRepo.deleteAllPatForClinic(this.db, validatedClinicId);
+          break;
+        case 'doctors':
+          deletedCount = await doctorRepo.deleteAllDocForClinic(this.db, validatedClinicId);
+          break;
+        case 'staff':
+          deletedCount = await staffRepo.deleteAllForClinic(this.db, validatedClinicId);
+          break;
+        default:
+          throw new AppError('Invalid data type specified', {
+            code: 'INVALID_DATA_TYPE',
+            statusCode: 400
+          });
+      }
+
+      // Invalidate cache
+      if (this.CACHE_ENABLED) {
+        await cacheService.invalidateClinicCaches(validatedClinicId);
+      }
+
+      logger.info('Data deletion completed', { clinicId: validatedClinicId, dataType, deletedCount });
+      return { deletedCount };
+    } catch (error) {
+      logger.error('Failed to delete data', { error, clinicId: validatedClinicId, dataType });
+      throw new AppError('Failed to delete data', {
+        code: 'DATA_DELETE_ERROR',
+        statusCode: 500
+      });
+    }
   }
   private calculateTopDoctors(appointments: Awaited<ReturnType<typeof appointmentRepo.findForMonth>>): Array<{
     doctorId: string;

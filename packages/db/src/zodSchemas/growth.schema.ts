@@ -1,6 +1,6 @@
-import { ChartType, Gender, GrowthStatus, MeasurementType } from '@generated/browser';
 import { z } from 'zod';
 
+import { ChartType, Gender, GrowthStatus, MeasurementType } from '../../generated/browser';
 import { clinicIdSchema, dateSchema, genderSchema, idSchema, patientIdSchema } from './helpers/enums';
 export const measurementTypeSchema = z.enum(MeasurementType);
 export const whoChartTypeSchema = z.enum(ChartType);

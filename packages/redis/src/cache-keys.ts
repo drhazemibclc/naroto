@@ -4,7 +4,9 @@
  */
 
 export const CACHE_KEYS = {
+  PATIENT_APPOINTMENTS: (patientId: string) => `patient:${patientId}:appointments`,
   PAYMENT: (id: string) => `payment:${id}`,
+  DOCTOR_APPOINTMENTS: (doctorId: string, date: string) => `doctor:${doctorId}:appointments:date:${date}`,
   PAYMENTS_CLINIC: (clinicId: string) => `clinic:${clinicId}:payments`,
   VITAL_SIGNS: (id: string) => `vital-signs:${id}`,
   VISIT: (id: string) => `visit:${id}`,
