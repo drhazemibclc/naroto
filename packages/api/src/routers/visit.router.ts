@@ -41,7 +41,7 @@ import {
   getCachedVisitById,
   getCachedVisitCountByStatus,
   getCachedVisitsByPatient
-} from '../cache/visit.cache';
+} from '../../../../apps/web/src/lib/cache/visit.cache';
 import { createTRPCRouter, protectedProcedure } from '../index';
 
 export const visitRouter = createTRPCRouter({

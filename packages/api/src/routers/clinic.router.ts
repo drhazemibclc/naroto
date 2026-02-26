@@ -1,3 +1,4 @@
+import clinicService, { dashboardService } from '@naroto/db/services/clinic.service';
 import {
   clinicCreateSchema,
   clinicGetByIdSchema,
@@ -6,27 +7,25 @@ import {
   MedicalRecordsSummaryInputSchema,
   reviewSchema
 } from '@naroto/db/zodSchemas/clinic.schema';
-import type { AnyRouter } from '@trpc/server';
 import { TRPCError } from '@trpc/server';
 
 import { createTRPCRouter, protectedProcedure } from '..';
-import { clinicService, dashboardService } from '../services/clinic.service';
 
-export const clinicRouter: AnyRouter = createTRPCRouter({
+export const clinicRouter = createTRPCRouter({
   // ==================== QUERIES ====================
 
   getOne: protectedProcedure.input(clinicGetOneSchema).query(async ({ input, ctx }) => {
-    return clinicService.getClinicWithUserAccess(input.id, ctx.user.id ?? '');
+    return clinicService.clinicService.getClinicWithUserAccess(input.id, ctx.user.id ?? '');
   }),
 
   getById: protectedProcedure.input(clinicGetByIdSchema).query(async ({ input }) => {
-    return clinicService.getClinicById(input.id);
+    return clinicService.clinicService.getClinicById(input.id);
   }),
 
   // ==================== MUTATIONS ====================
 
   createClinic: protectedProcedure.input(clinicCreateSchema).mutation(async ({ input, ctx }) => {
-    return clinicService.createClinic(input, ctx.user.id ?? '');
+    return clinicService.clinicService.createClinic(input, ctx.user.id ?? '');
   }),
 
   createReview: protectedProcedure.input(reviewSchema).mutation(async ({ input }) => {
@@ -37,9 +36,10 @@ export const clinicRouter: AnyRouter = createTRPCRouter({
       });
     }
 
-    return clinicService.createReview({
+    return clinicService.clinicService.createReview({
       ...input,
-      clinicId: input.clinicId
+      rating: input.rating,
+      comment: input.comment
     });
   }),
   getDashboard: protectedProcedure.input(DashboardStatsInputSchema).query(async ({ input, ctx }) => {
@@ -51,7 +51,11 @@ export const clinicRouter: AnyRouter = createTRPCRouter({
       });
     }
 
-    return dashboardService.getDashboardStats(clinicId, input.from, input.to);
+    return dashboardService.getDashboardStats(clinicId, {
+      clinicId,
+      from: input.from,
+      to: input.to
+    });
   }),
 
   getStats: protectedProcedure.query(async () => {
@@ -59,7 +63,7 @@ export const clinicRouter: AnyRouter = createTRPCRouter({
   }),
 
   getMedicalRecordsSummary: protectedProcedure.input(MedicalRecordsSummaryInputSchema).query(async ({ input, ctx }) => {
-    await clinicService.getClinicWithUserAccess(input.clinicId, ctx.user.id ?? '');
+    await clinicService.clinicService.getClinicWithUserAccess(input.clinicId, ctx.user.id ?? '');
 
     return dashboardService.getMedicalRecordsSummary(input.clinicId);
   }),

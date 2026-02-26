@@ -18,7 +18,7 @@ export const userRouter: AnyRouter = createTRPCRouter({
   clinics: protectedProcedure.query(async ({ ctx }) => {
     const userId = ctx.user.id;
 
-    const memberships = await ctx.db.clinicMember.findMany({
+    const memberships = await ctx.db?.clinicMember.findMany({
       where: { userId },
       include: {
         clinic: {

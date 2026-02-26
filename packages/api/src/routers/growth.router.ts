@@ -8,8 +8,12 @@
  * - Delegates to service layer
  * - NO business logic
  * - NO database calls
+ * - NO Next.js cache imports
  */
 
+// Import service from @naroto/db/services
+import { growthService } from '@naroto/db/services/growth.service';
+// Import schemas from @naroto/db/zodSchemas
 import {
   DeleteGrowthRecordSchema,
   GrowthComparisonSchema,
@@ -23,270 +27,626 @@ import {
   GrowthTrendsSchema,
   MultipleZScoreSchema,
   PatientZScoreChartSchema,
+  type UpdateGrowthRecordInput,
   VelocityCalculationSchema,
   ZScoreCalculationSchema,
   ZScoreChartSchema
 } from '@naroto/db/zodSchemas/growth.schema';
 import type { AnyRouter } from '@trpc/server';
 import { TRPCError } from '@trpc/server';
-import type { revalidateTag } from 'next/cache';
 import { z } from 'zod';
 
 import { createTRPCRouter, protectedProcedure } from '..';
-import { deleteGrowthRecordAction, updateGrowthRecordAction } from '../../../../apps/web/src/actions/growth.action';
-import {
-  getCachedClinicGrowthOverview,
-  getCachedGrowthComparison,
-  getCachedGrowthProjection,
-  getCachedGrowthRecordById,
-  getCachedGrowthRecordsByPatient,
-  getCachedGrowthSummary,
-  getCachedGrowthTrends,
-  getCachedLatestGrowthRecord,
-  getCachedMultipleZScores,
-  getCachedPatientMeasurements,
-  getCachedPatientZScoreChart,
-  getCachedPercentile,
-  getCachedRecentGrowthRecords,
-  getCachedVelocity,
-  getCachedWHOStandards,
-  getCachedZScoreChartData,
-  getCachedZScores
-} from '../cache/growth.cache';
-import { growthService } from '../services/growth.service';
 
 export const growthRouter: AnyRouter = createTRPCRouter({
   // ==================== QUERY PROCEDURES ====================
 
+  /**
+   * Get growth record by ID
+   * Service handles caching internally
+   */
   getGrowthRecordById: protectedProcedure.input(GrowthRecordByIdSchema).query(async ({ ctx, input }) => {
-    // Verify clinic access
-    const record = await getCachedGrowthRecordById(input.id);
-    if (!record) {
-      throw new TRPCError({
-        code: 'NOT_FOUND',
-        message: 'Growth record not found'
-      });
-    }
+    try {
+      const clinicId = ctx.session?.user.clinic?.id;
+      if (!clinicId) {
+        throw new TRPCError({
+          code: 'UNAUTHORIZED',
+          message: 'Clinic ID not found'
+        });
+      }
 
-    if (record.patient.clinicId !== ctx.session?.user.clinic?.id) {
-      throw new TRPCError({
-        code: 'FORBIDDEN',
-        message: 'Access denied'
-      });
-    }
+      const record = await growthService.getGrowthRecordById(input.id);
 
-    return record;
-  }),
+      if (!record) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Growth record not found'
+        });
+      }
 
-  getGrowthRecordsByPatient: protectedProcedure.input(GrowthRecordsByPatientSchema).query(async ({ ctx, input }) => {
-    if (input.clinicId !== ctx.session?.user.clinic?.id) {
-      throw new TRPCError({
-        code: 'FORBIDDEN',
-        message: 'Access denied'
-      });
-    }
-
-    return getCachedGrowthRecordsByPatient(input.patientId, input.clinicId, {
-      limit: 100,
-      offset: 0
-    });
-  }),
-
-  getLatestGrowthRecord: protectedProcedure
-    .input(z.object({ patientId: z.uuid(), clinicId: z.uuid() }))
-    .query(async ({ ctx, input }) => {
-      if (input.clinicId !== ctx.session?.user.clinic?.id) {
+      // Verify clinic access
+      if (record.patient?.clinicId !== clinicId) {
         throw new TRPCError({
           code: 'FORBIDDEN',
           message: 'Access denied'
         });
       }
 
-      return getCachedLatestGrowthRecord(input.patientId, input.clinicId);
+      return record;
+    } catch (error) {
+      if (error instanceof TRPCError) throw error;
+      throw new TRPCError({
+        code: 'INTERNAL_SERVER_ERROR',
+        message: error instanceof Error ? error.message : 'Failed to fetch growth record'
+      });
+    }
+  }),
+
+  /**
+   * Get growth records by patient
+   * Service handles caching internally
+   */
+  getGrowthRecordsByPatient: protectedProcedure.input(GrowthRecordsByPatientSchema).query(async ({ ctx, input }) => {
+    try {
+      const clinicId = ctx.session?.user.clinic?.id;
+      if (!clinicId) {
+        throw new TRPCError({
+          code: 'UNAUTHORIZED',
+          message: 'Clinic ID not found'
+        });
+      }
+
+      if (input.clinicId !== clinicId) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Access denied'
+        });
+      }
+
+      return await growthService.getGrowthRecordsByPatient(input.patientId, {
+        limit: input.limit || 100,
+        offset: input.offset || 0
+      });
+    } catch (error) {
+      if (error instanceof TRPCError) throw error;
+      throw new TRPCError({
+        code: 'INTERNAL_SERVER_ERROR',
+        message: error instanceof Error ? error.message : 'Failed to fetch growth records'
+      });
+    }
+  }),
+
+  /**
+   * Get latest growth record for patient
+   */
+  getLatestGrowthRecord: protectedProcedure
+    .input(z.object({ patientId: z.string().uuid(), clinicId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      try {
+        const clinicId = ctx.session?.user.clinic?.id;
+        if (!clinicId) {
+          throw new TRPCError({
+            code: 'UNAUTHORIZED',
+            message: 'Clinic ID not found'
+          });
+        }
+
+        if (input.clinicId !== clinicId) {
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: 'Access denied'
+          });
+        }
+
+        return await growthService.getLatestGrowthRecord(input.patientId, clinicId);
+      } catch (error) {
+        if (error instanceof TRPCError) throw error;
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: error instanceof Error ? error.message : 'Failed to fetch latest growth record'
+        });
+      }
     }),
 
+  /**
+   * Get patient measurements
+   */
   getPatientMeasurements: protectedProcedure
     .input(
       z.object({
-        patientId: z.uuid(),
-        clinicId: z.uuid(),
+        patientId: z.string().uuid(),
+        clinicId: z.string().uuid(),
         limit: z.number().min(1).max(100).default(50)
       })
     )
     .query(async ({ ctx, input }) => {
-      if (input.clinicId !== ctx.session?.user.clinic?.id) {
+      try {
+        const clinicId = ctx.session?.user.clinic?.id;
+        if (!clinicId) {
+          throw new TRPCError({
+            code: 'UNAUTHORIZED',
+            message: 'Clinic ID not found'
+          });
+        }
+
+        if (input.clinicId !== clinicId) {
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: 'Access denied'
+          });
+        }
+
+        return await growthService.getPatientMeasurements(input.patientId, clinicId, input.limit);
+      } catch (error) {
+        if (error instanceof TRPCError) throw error;
         throw new TRPCError({
-          code: 'FORBIDDEN',
-          message: 'Access denied'
+          code: 'INTERNAL_SERVER_ERROR',
+          message: error instanceof Error ? error.message : 'Failed to fetch patient measurements'
         });
       }
-
-      return getCachedPatientMeasurements(input.patientId, input.clinicId, input.limit);
     }),
 
+  /**
+   * Get growth summary for patient
+   */
   getGrowthSummary: protectedProcedure
-    .input(z.object({ patientId: z.uuid(), clinicId: z.uuid() }))
+    .input(z.object({ patientId: z.string().uuid(), clinicId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
-      if (input.clinicId !== ctx.session?.user.clinic?.id) {
+      try {
+        const clinicId = ctx.session?.user.clinic?.id;
+        if (!clinicId) {
+          throw new TRPCError({
+            code: 'UNAUTHORIZED',
+            message: 'Clinic ID not found'
+          });
+        }
+
+        if (input.clinicId !== clinicId) {
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: 'Access denied'
+          });
+        }
+
+        return await growthService.getGrowthSummary(input.patientId, clinicId);
+      } catch (error) {
+        if (error instanceof TRPCError) throw error;
         throw new TRPCError({
-          code: 'FORBIDDEN',
-          message: 'Access denied'
+          code: 'INTERNAL_SERVER_ERROR',
+          message: error instanceof Error ? error.message : 'Failed to fetch growth summary'
         });
       }
-
-      return getCachedGrowthSummary(input.patientId, input.clinicId);
     }),
 
-  getClinicGrowthOverview: protectedProcedure.input(z.object({ clinicId: z.uuid() })).query(async ({ ctx, input }) => {
-    if (input.clinicId !== ctx.session?.user.clinic?.id) {
-      throw new TRPCError({
-        code: 'FORBIDDEN',
-        message: 'Access denied'
-      });
-    }
-
-    return getCachedClinicGrowthOverview(input.clinicId);
-  }),
-
-  recent: protectedProcedure
-    .input(z.object({ clinicId: z.uuid(), limit: z.number().min(1).max(20).default(5) }))
+  /**
+   * Get clinic growth overview
+   */
+  getClinicGrowthOverview: protectedProcedure
+    .input(z.object({ clinicId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
-      if (input.clinicId !== ctx.session?.user.clinic?.id) {
+      try {
+        const clinicId = ctx.session?.user.clinic?.id;
+        if (!clinicId) {
+          throw new TRPCError({
+            code: 'UNAUTHORIZED',
+            message: 'Clinic ID not found'
+          });
+        }
+
+        if (input.clinicId !== clinicId) {
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: 'Access denied'
+          });
+        }
+
+        return await growthService.getClinicGrowthOverview(clinicId);
+      } catch (error) {
+        if (error instanceof TRPCError) throw error;
         throw new TRPCError({
-          code: 'FORBIDDEN',
-          message: 'Access denied'
+          code: 'INTERNAL_SERVER_ERROR',
+          message: error instanceof Error ? error.message : 'Failed to fetch clinic growth overview'
         });
       }
+    }),
 
-      return getCachedRecentGrowthRecords(input.clinicId, input.limit);
+  /**
+   * Get recent growth records
+   */
+  recent: protectedProcedure
+    .input(z.object({ clinicId: z.string().uuid(), limit: z.number().min(1).max(20).default(5) }))
+    .query(async ({ ctx, input }) => {
+      try {
+        const clinicId = ctx.session?.user.clinic?.id;
+        if (!clinicId) {
+          throw new TRPCError({
+            code: 'UNAUTHORIZED',
+            message: 'Clinic ID not found'
+          });
+        }
+
+        if (input.clinicId !== clinicId) {
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: 'Access denied'
+          });
+        }
+
+        return await growthService.getRecentGrowthRecords(clinicId, input.limit);
+      } catch (error) {
+        if (error instanceof TRPCError) throw error;
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: error instanceof Error ? error.message : 'Failed to fetch recent growth records'
+        });
+      }
     }),
 
   // ==================== WHO STANDARDS PROCEDURES ====================
 
+  /**
+   * Get WHO growth standards
+   */
   getWHOStandards: protectedProcedure.input(GrowthStandardsSchema).query(async ({ input }) => {
-    return getCachedWHOStandards(input);
+    try {
+      return await growthService.getWHOStandards(input);
+    } catch (error) {
+      throw new TRPCError({
+        code: 'INTERNAL_SERVER_ERROR',
+        message: error instanceof Error ? error.message : 'Failed to fetch WHO standards'
+      });
+    }
   }),
 
   // ==================== CALCULATION PROCEDURES ====================
 
+  /**
+   * Calculate growth percentile
+   */
   calculatePercentile: protectedProcedure.input(GrowthPercentileSchema).query(async ({ input }) => {
-    // Verify patient belongs to clinic
-    // This is handled in the service layer
-    return getCachedPercentile(input);
+    try {
+      return await growthService.calculatePercentile(input);
+    } catch (error) {
+      throw new TRPCError({
+        code: 'INTERNAL_SERVER_ERROR',
+        message: error instanceof Error ? error.message : 'Failed to calculate percentile'
+      });
+    }
   }),
 
+  /**
+   * Get growth trends
+   */
   getGrowthTrends: protectedProcedure.input(GrowthTrendsSchema).query(async ({ ctx, input }) => {
-    if (input.clinicId !== ctx.session?.user.clinic?.id) {
+    try {
+      const clinicId = ctx.session?.user.clinic?.id;
+      if (!clinicId) {
+        throw new TRPCError({
+          code: 'UNAUTHORIZED',
+          message: 'Clinic ID not found'
+        });
+      }
+
+      if (input.clinicId !== clinicId) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Access denied'
+        });
+      }
+
+      return await growthService.getGrowthTrends(input);
+    } catch (error) {
+      if (error instanceof TRPCError) throw error;
       throw new TRPCError({
-        code: 'FORBIDDEN',
-        message: 'Access denied'
+        code: 'INTERNAL_SERVER_ERROR',
+        message: error instanceof Error ? error.message : 'Failed to fetch growth trends'
       });
     }
-
-    return getCachedGrowthTrends(input);
   }),
 
+  /**
+   * Calculate growth velocity
+   */
   calculateVelocity: protectedProcedure.input(VelocityCalculationSchema).query(async ({ ctx, input }) => {
-    if (input.clinicId !== ctx.session?.user.clinic?.id) {
+    try {
+      const clinicId = ctx.session?.user.clinic?.id;
+      if (!clinicId) {
+        throw new TRPCError({
+          code: 'UNAUTHORIZED',
+          message: 'Clinic ID not found'
+        });
+      }
+
+      if (input.clinicId !== clinicId) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Access denied'
+        });
+      }
+
+      return await growthService.calculateVelocity(input);
+    } catch (error) {
+      if (error instanceof TRPCError) throw error;
       throw new TRPCError({
-        code: 'FORBIDDEN',
-        message: 'Access denied'
+        code: 'INTERNAL_SERVER_ERROR',
+        message: error instanceof Error ? error.message : 'Failed to calculate velocity'
       });
     }
-
-    return getCachedVelocity(input);
   }),
 
+  /**
+   * Compare growth measurements
+   */
   compareGrowth: protectedProcedure.input(GrowthComparisonSchema).query(async ({ ctx, input }) => {
-    if (input.clinicId !== ctx.session?.user.clinic?.id) {
+    try {
+      const clinicId = ctx.session?.user.clinic?.id;
+      if (!clinicId) {
+        throw new TRPCError({
+          code: 'UNAUTHORIZED',
+          message: 'Clinic ID not found'
+        });
+      }
+
+      if (input.clinicId !== clinicId) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Access denied'
+        });
+      }
+
+      return await growthService.compareGrowth(input);
+    } catch (error) {
+      if (error instanceof TRPCError) throw error;
       throw new TRPCError({
-        code: 'FORBIDDEN',
-        message: 'Access denied'
+        code: 'INTERNAL_SERVER_ERROR',
+        message: error instanceof Error ? error.message : 'Failed to compare growth'
       });
     }
-
-    return getCachedGrowthComparison(input);
   }),
 
+  /**
+   * Calculate Z-score
+   */
   calculateZScore: protectedProcedure.input(ZScoreCalculationSchema).query(async ({ input }) => {
-    return getCachedZScores(input.ageDays, input.weight, input.gender);
-  }),
-
-  calculateMultipleZScores: protectedProcedure.input(MultipleZScoreSchema).query(async ({ input }) => {
-    return getCachedMultipleZScores(input.measurements);
-  }),
-
-  getGrowthProjection: protectedProcedure.input(GrowthProjectionSchema).query(async ({ ctx, input }) => {
-    if (input.clinicId !== ctx.session?.user.clinic?.id) {
+    try {
+      return await growthService.calculateZScores(input.ageDays, input.weight, input.gender);
+    } catch (error) {
       throw new TRPCError({
-        code: 'FORBIDDEN',
-        message: 'Access denied'
+        code: 'INTERNAL_SERVER_ERROR',
+        message: error instanceof Error ? error.message : 'Failed to calculate Z-score'
       });
     }
+  }),
 
-    return getCachedGrowthProjection(input.patientId, input.clinicId, input.measurementType, input.projectionMonths);
+  /**
+   * Calculate multiple Z-scores
+   */
+  calculateMultipleZScores: protectedProcedure.input(MultipleZScoreSchema).query(async ({ input }) => {
+    try {
+      return await growthService.calculateMultipleZScores(input.measurements);
+    } catch (error) {
+      throw new TRPCError({
+        code: 'INTERNAL_SERVER_ERROR',
+        message: error instanceof Error ? error.message : 'Failed to calculate multiple Z-scores'
+      });
+    }
+  }),
+
+  /**
+   * Get growth projection
+   */
+  getGrowthProjection: protectedProcedure.input(GrowthProjectionSchema).query(async ({ ctx, input }) => {
+    try {
+      const clinicId = ctx.session?.user.clinic?.id;
+      if (!clinicId) {
+        throw new TRPCError({
+          code: 'UNAUTHORIZED',
+          message: 'Clinic ID not found'
+        });
+      }
+
+      if (input.clinicId !== clinicId) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Access denied'
+        });
+      }
+
+      return await growthService.getGrowthProjection(
+        input.patientId,
+        clinicId,
+        input.measurementType,
+        input.projectionMonths
+      );
+    } catch (error) {
+      if (error instanceof TRPCError) throw error;
+      throw new TRPCError({
+        code: 'INTERNAL_SERVER_ERROR',
+        message: error instanceof Error ? error.message : 'Failed to get growth projection'
+      });
+    }
   }),
 
   // ==================== CHART PROCEDURES ====================
 
+  /**
+   * Get Z-score chart data
+   */
   getZScoreChartData: protectedProcedure.input(ZScoreChartSchema).query(async ({ input }) => {
-    return getCachedZScoreChartData(input.gender, input.measurementType);
-  }),
-
-  getPatientZScoreChart: protectedProcedure.input(PatientZScoreChartSchema).query(async ({ ctx, input }) => {
-    if (input.clinicId !== ctx.session?.user.clinic?.id) {
+    try {
+      return await growthService.getZScoreChartData(input.gender, input.measurementType);
+    } catch (error) {
       throw new TRPCError({
-        code: 'FORBIDDEN',
-        message: 'Access denied'
+        code: 'INTERNAL_SERVER_ERROR',
+        message: error instanceof Error ? error.message : 'Failed to fetch Z-score chart data'
       });
     }
-    return getCachedPatientZScoreChart(input.patientId, input.clinicId, input.measurementType);
   }),
 
+  /**
+   * Get patient Z-score chart
+   */
+  getPatientZScoreChart: protectedProcedure.input(PatientZScoreChartSchema).query(async ({ ctx, input }) => {
+    try {
+      const clinicId = ctx.session?.user.clinic?.id;
+      if (!clinicId) {
+        throw new TRPCError({
+          code: 'UNAUTHORIZED',
+          message: 'Clinic ID not found'
+        });
+      }
+
+      if (input.clinicId !== clinicId) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Access denied'
+        });
+      }
+
+      return await growthService.getPatientZScoreChart(input.patientId, clinicId, input.measurementType);
+    } catch (error) {
+      if (error instanceof TRPCError) throw error;
+      throw new TRPCError({
+        code: 'INTERNAL_SERVER_ERROR',
+        message: error instanceof Error ? error.message : 'Failed to fetch patient Z-score chart'
+      });
+    }
+  }),
+
+  /**
+   * Get Z-score areas
+   */
   getZScoreAreas: protectedProcedure.input(ZScoreChartSchema).query(async ({ input }) => {
-    return growthService.getZScoreAreas(input.gender, input.measurementType);
+    try {
+      return await growthService.getZScoreAreas(input.gender, input.measurementType);
+    } catch (error) {
+      throw new TRPCError({
+        code: 'INTERNAL_SERVER_ERROR',
+        message: error instanceof Error ? error.message : 'Failed to fetch Z-score areas'
+      });
+    }
   }),
 
   // ==================== MUTATION PROCEDURES ====================
 
-  // Do this instead of calling createGrowthRecordAction
+  /**
+   * Create growth record
+   * Service handles cache invalidation internally
+   */
   createGrowthRecord: protectedProcedure.input(GrowthRecordCreateSchema).mutation(async ({ ctx, input }) => {
-    // 1. Auth Check (Good)
-    if (input.clinicId !== ctx.session?.user.clinic?.id) {
-      throw new TRPCError({ code: 'FORBIDDEN', message: 'Access denied' });
+    try {
+      const clinicId = ctx.session?.user.clinic?.id;
+      const _userId = ctx.user.id;
+
+      if (!clinicId) {
+        throw new TRPCError({
+          code: 'UNAUTHORIZED',
+          message: 'Clinic ID not found'
+        });
+      }
+
+      if (input.clinicId !== clinicId) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Access denied'
+        });
+      }
+
+      const result = await growthService.createGrowthRecord(input);
+
+      return {
+        success: true,
+        message: 'Growth record created successfully',
+        data: result
+      };
+    } catch (error) {
+      if (error instanceof TRPCError) throw error;
+      throw new TRPCError({
+        code: 'INTERNAL_SERVER_ERROR',
+        message: error instanceof Error ? error.message : 'Failed to create growth record'
+      });
     }
-
-    // 2. Call the SERVICE directly
-    const result = await growthService.createGrowthRecord(input);
-
-    // 3. Revalidate the Next.js Cache (since you're in Next.js 16)
-    // Only import revalidateTag from 'next/cache' here
-    revalidateTag(`growth-${input.patientId}`);
-    revalidateTag(`clinic-${input.clinicId}`);
-
-    return result;
   }),
+
+  /**
+   * Update growth record
+   * Service handles cache invalidation internally
+   */
   updateGrowthRecord: protectedProcedure.input(GrowthRecordUpdateSchema).mutation(async ({ ctx, input }) => {
-    const record = await growthService.getGrowthRecordById(input.id ?? '');
-    if (record.patient.clinicId !== ctx.session?.user.clinic?.id) {
+    try {
+      const clinicId = ctx.session?.user.clinic?.id;
+      const userId = ctx.user.id;
+
+      if (!clinicId) {
+        throw new TRPCError({
+          code: 'UNAUTHORIZED',
+          message: 'Clinic ID not found'
+        });
+      }
+
+      // Verify access
+      const record = await growthService.getGrowthRecordById(input.id ?? '');
+      if (record.patient?.clinicId !== clinicId) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Access denied'
+        });
+      }
+
+      const result = await growthService.updateGrowthRecord(input.id ?? '', input as UpdateGrowthRecordInput, userId);
+
+      return {
+        success: true,
+        message: 'Growth record updated successfully',
+        data: result
+      };
+    } catch (error) {
+      if (error instanceof TRPCError) throw error;
       throw new TRPCError({
-        code: 'FORBIDDEN',
-        message: 'Access denied'
+        code: 'INTERNAL_SERVER_ERROR',
+        message: error instanceof Error ? error.message : 'Failed to update growth record'
       });
     }
-
-    return updateGrowthRecordAction(input.id ?? '', input);
   }),
 
+  /**
+   * Delete growth record
+   * Service handles cache invalidation internally
+   */
   deleteGrowthRecord: protectedProcedure.input(DeleteGrowthRecordSchema).mutation(async ({ ctx, input }) => {
-    const record = await growthService.getGrowthRecordById(input.id);
-    if (record.patient.clinicId !== ctx.session?.user.clinic?.id) {
+    try {
+      const clinicId = ctx.session?.user.clinic?.id;
+      const userId = ctx.user.id;
+
+      if (!clinicId) {
+        throw new TRPCError({
+          code: 'UNAUTHORIZED',
+          message: 'Clinic ID not found'
+        });
+      }
+
+      // Verify access
+      const record = await growthService.getGrowthRecordById(input.id);
+      if (record.patient?.clinicId !== clinicId) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Access denied'
+        });
+      }
+
+      const result = await growthService.deleteGrowthRecord(input.id, userId);
+
+      return {
+        success: true,
+        message: 'Growth record deleted successfully',
+        data: result
+      };
+    } catch (error) {
+      if (error instanceof TRPCError) throw error;
       throw new TRPCError({
-        code: 'FORBIDDEN',
-        message: 'Access denied'
+        code: 'INTERNAL_SERVER_ERROR',
+        message: error instanceof Error ? error.message : 'Failed to delete growth record'
       });
     }
-
-    return deleteGrowthRecordAction(input);
   })
 });

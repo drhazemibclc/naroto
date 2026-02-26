@@ -1,17 +1,28 @@
 'use client';
 
-import { AlertCircle, XCircle } from 'lucide-react';
+import { Activity, AlertCircle, Clock, Server, XCircle } from 'lucide-react';
 import Link from 'next/link';
-
-import type { HealthData, HealthMetrics } from '@/types/health';
 
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Progress } from '../ui/progress';
+export interface HealthData {
+  affectedServices?: string[];
+  environment?: string;
+  maintenanceScheduled?: boolean;
+  status: 'healthy' | 'degraded' | 'down';
+  version?: string;
+}
 
-function StatusCard({ health, isLoading }: { health: HealthData | null | undefined; isLoading: boolean }) {
+export interface HealthMetrics {
+  responseTime: number;
+  status: 'healthy' | 'degraded' | 'down';
+  uptime: number;
+}
+
+function StatusCard({ health }: { health: HealthData | null | undefined; isLoading: boolean }) {
   const hasIssues = health?.status === 'degraded' || health?.status === 'down';
 
   return (
@@ -63,7 +74,7 @@ function ApiStatusCard({ health, isLoading }: { health: HealthData | null | unde
     <Card>
       <CardHeader className='pb-2'>
         <CardTitle className='flex items-center gap-2 font-medium text-sm'>
-          <server className='h-4 w-4' />
+          <Server className='h-4 w-4' />
           API Status
         </CardTitle>
       </CardHeader>
@@ -111,28 +122,56 @@ function ResponseTimeCard({ metrics }: { metrics: HealthMetrics }) {
   );
 }
 
-function UptimeCard({ metrics }: { metrics: HealthMetrics }) {
+function formatDuration(seconds: number) {
+  const d = Math.floor(seconds / (3600 * 24));
+  const h = Math.floor((seconds % (3600 * 24)) / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+
+  const parts = [];
+  if (d > 0) parts.push(`${d}d`);
+  if (h > 0) parts.push(`${h}h`);
+  if (m > 0 || parts.length === 0) parts.push(`${m}m`);
+
+  return parts.join(' ');
+}
+
+export function UptimeCard({ metrics }: { metrics: HealthMetrics }) {
+  const isHealthy = metrics.status === 'healthy';
+
   return (
-    <Card>
-      <CardHeader className='pb-2'>
-        <CardTitle className='flex items-center gap-2 font-medium text-sm'>
-          <i className='h-4 w-4' />
-          Uptime
+    <Card className='relative overflow-hidden'>
+      <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
+        <CardTitle className='flex items-center gap-2 font-medium text-muted-foreground text-sm'>
+          <Clock className='h-4 w-4' />
+          System Uptime
         </CardTitle>
+        {/* Real-time pulse indicator */}
+        <span className='relative flex h-2 w-2'>
+          <span
+            className={`absolute inline-flex h-full w-full animate-ping rounded-full opacity-75 ${isHealthy ? 'bg-emerald-400' : 'bg-amber-400'}`}
+          />
+          <span
+            className={`relative inline-flex h-2 w-2 rounded-full ${isHealthy ? 'bg-emerald-500' : 'bg-amber-500'}`}
+          />
+        </span>
       </CardHeader>
+
       <CardContent>
-        <span className='font-medium text-2xl'>{/* {formatUptime(metrics.uptime)} */}</span>
-        <Badge
-          className='ml-2'
-          variant='outline'
-        >
-          99.9%
-        </Badge>
+        <div className='flex items-baseline justify-between'>
+          <div className='font-bold text-2xl tracking-tight'>{formatDuration(metrics.uptime)}</div>
+          <Badge
+            className='font-medium font-mono'
+            variant={isHealthy ? 'secondary' : 'destructive'}
+          >
+            <Activity className='mr-1 h-3 w-3' />
+            99.9%
+          </Badge>
+        </div>
+        <p className='mt-1 text-muted-foreground text-xs'>Since last system deployment</p>
       </CardContent>
     </Card>
   );
 }
-
 export function StatusOverview({
   health,
   metrics,

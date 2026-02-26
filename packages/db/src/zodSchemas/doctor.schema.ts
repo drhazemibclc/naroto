@@ -44,6 +44,7 @@ export const DoctorByIdSchema = z.object({
 export type CreateDoctorInput = z.infer<typeof CreateDoctorSchema>;
 export type DoctorListInput = z.infer<typeof DoctorListSchema>;
 export type DoctorByIdInput = z.infer<typeof DoctorByIdSchema>;
+// --- 1. Define Update Schema ---
 
 export const workingDaySchema = z.object({
   day: z.enum(['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']),
@@ -124,3 +125,33 @@ export const DeleteDoctorSchema = z.object({
 
 // Type inference for use in components
 export type DeleteDoctorInput = z.infer<typeof DeleteDoctorSchema>;
+export const UpdateDoctorInputSchema = CreateNewDoctorInputSchema.extend({
+  // ID is required to know which doctor to update
+  id: z.uuid('Invalid Doctor ID format'),
+  // clinicId is required for security/multi-tenancy scoping
+  clinicId: z.uuid()
+}).partial({
+  // Make everything except id and clinicId optional for updates
+  name: true,
+  phone: true,
+  email: true,
+  address: true,
+  specialty: true,
+  licenseNumber: true,
+  type: true,
+  department: true,
+  appointmentPrice: true,
+  availableToTime: true,
+  workSchedule: true
+});
+
+// --- 2. Export Types ---
+export type UpdateDoctorInput = z.infer<typeof UpdateDoctorInputSchema>;
+
+// --- 3. Example Service Method Signature ---
+/*
+  async updateDoctor(input: UpdateDoctorInput, userId: string) {
+    const { id, clinicId, ...data } = UpdateDoctorInputSchema.parse(input);
+    // Logic to update profile and optionally sync workSchedule...
+  }
+*/

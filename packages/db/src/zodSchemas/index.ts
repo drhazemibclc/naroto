@@ -16,21 +16,6 @@ import z from 'zod';
 
 import { genderSchema } from './helpers/enums';
 
-export const DiagnosisSchema = z.object({
-  patientId: z.string(),
-  medicalId: z.string(),
-  doctorId: z.string(),
-  symptoms: z.string({
-    error: 'Symptoms required'
-  }),
-  diagnosis: z.string({
-    error: 'Diagnosis required'
-  }),
-  notes: z.string().optional(),
-  prescribedMedications: z.string().optional(),
-  followUpPlan: z.string().optional()
-});
-
 export const workingDaySchema = z.object({
   day: z.enum(['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']),
   startTime: z.string(),

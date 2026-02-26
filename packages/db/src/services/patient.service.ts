@@ -27,6 +27,7 @@ import { AppError, ConflictError, NotFoundError, ValidationError } from '../erro
 import * as appointmentRepo from '../repositories/appointment.repo';
 import * as patientRepo from '../repositories/patient.repo';
 import type { Appointment, Patient } from '../types';
+import { calculateAgeInMonths } from '../utils';
 import { processAppointments } from '../utils/helper';
 import {
   type CreatePatientInput,
@@ -225,7 +226,12 @@ export class PatientService {
         await cacheService.set(cacheKey, patients, CACHE_TTL.PATIENTS_LIST);
       }
 
-      return patients;
+      return patients.map(patient => ({
+        ...patient,
+        ageMonths: calculateAgeInMonths(patient.dateOfBirth),
+        lastVisit:
+          (patient as { appointments?: Array<{ appointmentDate: Date }> }).appointments?.[0]?.appointmentDate || null
+      }));
     } catch (error) {
       logger.error('Failed to get recent patients', { error, clinicId: validatedClinicId });
       throw new AppError('Failed to retrieve recent patients', {

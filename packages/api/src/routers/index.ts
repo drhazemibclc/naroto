@@ -13,7 +13,7 @@ import { paymentsRouter } from './Payment.router';
 import { patientRouter } from './patient.router';
 import { searchRouter } from './search';
 import { serviceRouter } from './service.router';
-import { staffRouter } from './staff';
+import { staffRouter } from './staff.router';
 import { todoRouter } from './todo';
 import { userRouter } from './user';
 import { vaccinationRouter } from './vac.router';

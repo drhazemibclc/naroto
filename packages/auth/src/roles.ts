@@ -1,56 +1,72 @@
 import { createAccessControl } from 'better-auth/plugins/access';
+import { adminAc, defaultStatements, userAc } from 'better-auth/plugins/admin/access';
 
-const statement = {
+// 1. Define all possible actions for each resource
+const statements = {
+  ...defaultStatements,
   patients: ['create', 'read', 'update', 'delete', 'list'],
   appointments: ['create', 'read', 'update', 'delete', 'list'],
   records: ['create', 'read', 'update', 'delete', 'list'],
   staff: ['create', 'read', 'update', 'delete', 'list'],
   payments: ['create', 'read', 'update', 'delete', 'list'],
-  // Add system-level permissions
+  immunization: ['create', 'read', 'update', 'delete'],
+  prescription: ['create', 'read', 'update', 'delete'],
+  growth: ['create', 'read', 'update', 'delete'],
   system: ['backup', 'restore', 'configure'],
   reports: ['generate', 'export', 'view']
 } as const;
 
-const ac = createAccessControl(statement);
+// 2. Create the AC instance using the defined statements
+export const ac = createAccessControl(statements);
 
+// 3. Define roles
 export const roles = {
   admin: ac.newRole({
-    patients: ['create', 'read', 'update', 'delete', 'list'],
-    appointments: ['create', 'read', 'update', 'delete', 'list'],
-    records: ['create', 'read', 'update', 'delete', 'list'],
-    staff: ['create', 'read', 'update', 'delete', 'list'],
-    payments: ['create', 'read', 'update', 'delete', 'list'],
-    system: ['backup', 'restore', 'configure'],
-    reports: ['generate', 'export', 'view']
+    ...statements, // Admin gets everything defined above
+    ...adminAc.statements // Plus default admin perms (impersonate, ban, etc)
   }),
   doctor: ac.newRole({
+    ...userAc.statements,
     patients: ['create', 'read', 'update', 'list'],
     appointments: ['create', 'read', 'update', 'delete', 'list'],
     records: ['create', 'read', 'update', 'list'],
     payments: ['read', 'list'],
+    immunization: ['create', 'read', 'update'],
+    prescription: ['create', 'read', 'update'],
+    growth: ['create', 'read', 'update'],
     reports: ['generate', 'view'],
-    staff: []
+    // Empty arrays for resources with no access
+    staff: [],
+    system: []
   }),
   staff: ac.newRole({
+    ...userAc.statements,
     patients: ['create', 'read', 'update', 'list'],
     appointments: ['create', 'read', 'update', 'delete', 'list'],
     records: ['read', 'list'],
     staff: ['read'],
     payments: ['create', 'read', 'update', 'list'],
-    reports: ['view']
+    immunization: ['read'],
+    prescription: ['read'],
+    growth: ['read'],
+    reports: ['view'],
+    system: []
   }),
   patient: ac.newRole({
-    appointments: ['create', 'read'], // Book and view own appointments
-    records: ['read'], // View own records only
-    payments: ['read'], // View own payments
-    patients: [], // No patient management
+    ...userAc.statements,
+    appointments: ['create', 'read'],
+    records: ['read'],
+    payments: ['read'],
+    immunization: ['read'],
+    prescription: ['read'],
+    growth: ['read'],
+    // Explicitly empty for others
+    patients: [],
     staff: [],
+    system: [],
     reports: []
   })
 };
 
 export type UserRoles = keyof typeof roles;
-export type UserRole = 'ADMIN' | 'DOCTOR' | 'STAFF' | 'PATIENT';
-export type Role = Uppercase<UserRoles>;
-// Export for use in auth configuration
-export { ac, statement };
+export { statements as statement };

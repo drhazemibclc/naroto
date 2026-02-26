@@ -14,7 +14,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
-
 import { trpc } from '@/utils/trpc';
 
 interface PatientActionsProps {
@@ -23,7 +22,7 @@ interface PatientActionsProps {
   patientName: string;
 }
 
-export function PatientActions({ patientId, patientName, clinicId }: PatientActionsProps) {
+export function PatientActions({ patientId, clinicId }: PatientActionsProps) {
   const queryClient = useQueryClient();
 
   const deleteMutation = useMutation(
@@ -41,11 +40,7 @@ export function PatientActions({ patientId, patientName, clinicId }: PatientActi
     })
   );
 
-  const handleDelete = () => {
-    if (confirm(`Are you sure you want to delete ${patientName}?`)) {
-      deleteMutation.mutate(patientId);
-    }
-  };
+  const handleDelete = () => deleteMutation.mutate(patientId);
 
   return (
     <DropdownMenu>

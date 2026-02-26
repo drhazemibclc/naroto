@@ -9,7 +9,27 @@ import type { LabStatus, Prisma, PrismaClient } from '../../generated/client';
  */
 
 // ==================== READ OPERATIONS ====================
+export async function countLabTestsByService(db: PrismaClient, serviceId: string, clinicId: string) {
+  return db.labTest.count({
+    where: {
+      serviceId,
+      medicalRecord: {
+        clinicId
+      }
+    }
+  });
+}
 
+export async function countLabTestsByPatient(db: PrismaClient, patientId: string) {
+  return db.labTest.count({
+    where: {
+      medicalRecord: {
+        patientId,
+        isDeleted: false
+      }
+    }
+  });
+}
 export async function findLabTestById(db: PrismaClient, id: string) {
   return db.labTest.findUnique({
     where: { id },

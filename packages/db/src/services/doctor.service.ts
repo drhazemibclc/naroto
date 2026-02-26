@@ -354,9 +354,9 @@ export class DoctorService {
   /**
    * Get doctor dashboard statistics
    */
-  async getDoctorDashboardStats(doctorId: string, clinicId: string): Promise<DoctorDashboardStats> {
+  async getDoctorDashboardStats(id: string, clinicId: string): Promise<DoctorDashboardStats> {
     // Validate inputs
-    const validatedId = z.uuid().parse(doctorId);
+    const validatedId = z.uuid().parse(id);
     const validatedClinicId = z.uuid().parse(clinicId);
 
     const cacheKey = CACHE_KEYS.DOCTOR_DASHBOARD(validatedId, validatedClinicId);

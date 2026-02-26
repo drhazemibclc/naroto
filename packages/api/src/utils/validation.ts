@@ -1,6 +1,7 @@
 import { TRPCError } from '@trpc/server';
 import type { TRPCErrorShape } from '@trpc/server/rpc';
-import { ZodError, type ZodIssue, type ZodSchema } from 'zod';
+import type z from 'zod';
+import { ZodError } from 'zod';
 
 // ==================== ZOD ERROR HANDLING UTILITIES ====================
 
@@ -73,10 +74,12 @@ export function enhancedErrorFormatter({ shape, error }: { shape: TRPCErrorShape
           fieldErrors,
           formErrors,
           issueCount: error.cause.issues.length,
-          issues: error.cause.issues.map((issue: ZodIssue) => ({
+          // ✅ Changed: issue type is inferred from z.ZodIssue
+          issues: error.cause.issues.map((issue: z.ZodIssue) => ({
             path: issue.path,
             message: issue.message,
             code: issue.code,
+            // Use type narrowing or 'in' check for extra properties
             expected: 'expected' in issue ? issue.expected : undefined,
             received: 'received' in issue ? issue.received : undefined
           }))
@@ -129,7 +132,7 @@ export function createZodValidationMiddleware() {
  * Validation helper with detailed error reporting
  */
 export function validateWithDetails<T>(
-  schema: ZodSchema<T>,
+  schema: z.ZodSchema<T>,
   data: unknown,
   context?: string
 ): { success: true; data: T } | { success: false; error: TRPCError } {
@@ -256,7 +259,7 @@ export function isTRPCError(error: unknown): error is TRPCError {
  * Async validation helper with timeout
  */
 export async function validateWithTimeout<T>(
-  schema: ZodSchema<T>,
+  schema: z.ZodSchema<T>,
   data: unknown,
   timeoutMs = 5000,
   context?: string

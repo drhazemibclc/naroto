@@ -13,8 +13,8 @@ export * as medicalRecordRepo from './repositories/medical-record.repo';
 export * as prescriptionRepo from './repositories/prescription.repo';
 export * as validationRepo from './repositories/validation.repo';
 export * as vitalSignsRepo from './repositories/vital-signs.repo';
-export { appointmentAvailability } from './services/appointment/availability';
 export type { TimeSlot } from './services/appointment/availability';
+export { appointmentAvailability } from './services/appointment/availability';
 // Services
 export { growthCalculator } from './services/growth/calculator';
 export { immunizationService } from './services/immunization/due-calculator';

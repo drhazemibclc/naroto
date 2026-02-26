@@ -37,13 +37,13 @@ export function createUserLogger(userId: string, clinicId?: string) {
 }
 
 // Pre-configured loggers for common modules
-export const serverLogger = createClinicLogger("server");
-export const dbLogger = createClinicLogger("db");
-export const authLogger = createClinicLogger("auth");
-export const wsLogger = createClinicLogger("ws");
-export const aiLogger = createClinicLogger("ai");
-export const trpcLogger = createClinicLogger("trpc");
-export const schedulerLogger = createClinicLogger("scheduler");
-export const videoLogger = createClinicLogger("video");
-export const parserLogger = createClinicLogger("parser");
-export const redisLogger = createClinicLogger("redis");
+export const serverLogger = createClinicLogger('server');
+export const dbLogger = createClinicLogger('db');
+export const authLogger = createClinicLogger('auth');
+export const wsLogger = createClinicLogger('ws');
+export const aiLogger = createClinicLogger('ai');
+export const trpcLogger = createClinicLogger('trpc');
+export const schedulerLogger = createClinicLogger('scheduler');
+export const videoLogger = createClinicLogger('video');
+export const parserLogger = createClinicLogger('parser');
+export const redisLogger = createClinicLogger('redis');

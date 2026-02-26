@@ -28,7 +28,6 @@ import type { AnyRouter } from '@trpc/server';
 import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
 
-import { createTRPCRouter, protectedProcedure } from '..';
 import {
   completeImmunizationAction,
   delayImmunizationAction,
@@ -39,7 +38,7 @@ import {
   updateImmunizationAction,
   updateImmunizationStatusAction
 } from '../../../../apps/web/src/actions/vac.action';
-import { getCachedVaccineSchedule } from '../cache/system.cache';
+import { getCachedVaccineSchedule } from '../../../../apps/web/src/lib/cache/system.cache';
 import {
   getCachedCalculatedDueVaccines,
   getCachedDueVaccinations,
@@ -54,7 +53,8 @@ import {
   getCachedUpcomingVaccinations,
   getCachedVaccinationCountByStatus,
   getCachedVaccineScheduleByAge
-} from '../cache/vac.cache';
+} from '../../../../apps/web/src/lib/cache/vac.cache';
+import { createTRPCRouter, protectedProcedure } from '..';
 
 export const vaccinationRouter: AnyRouter = createTRPCRouter({
   // ==================== QUERY PROCEDURES ====================

@@ -221,6 +221,39 @@ export async function findDoctorById(db: PrismaClient, id: string, clinicId: str
       clinicId,
       isDeleted: false
     },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      phone: true,
+      specialty: true,
+      address: true,
+      licenseNumber: true,
+      type: true,
+      department: true,
+      isActive: true,
+      appointmentPrice: true,
+      img: true,
+      colorCode: true,
+      workingDays: {
+        select: {
+          day: true,
+          startTime: true,
+          endTime: true
+        }
+      }
+    }
+  });
+}
+
+export async function findDoctorByEmail(db: PrismaClient, email: string, id: string, clinicId: string) {
+  return db.doctor.findUnique({
+    where: {
+      email,
+      id,
+      clinicId,
+      isDeleted: false
+    },
     include: {
       workingDays: {
         select: {

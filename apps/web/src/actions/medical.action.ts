@@ -12,7 +12,6 @@
 
 'use server';
 
-import { cacheHelpers } from '@naroto/api/cache/utils/helpers';
 import { medicalService } from '@naroto/api/services/medical.service';
 import { getSession } from '@naroto/api/utils/index';
 import {
@@ -31,6 +30,8 @@ import {
   VitalSignsUpdateSchema
 } from '@naroto/db/zodSchemas/index';
 import { revalidatePath } from 'next/cache';
+
+import { cacheHelpers } from '@/lib/cache/utils/helpers';
 
 // ==================== DIAGNOSIS ACTIONS ====================
 

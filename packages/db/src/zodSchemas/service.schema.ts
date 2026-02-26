@@ -1,16 +1,9 @@
 import z from 'zod';
 
+import { ServiceCategory } from '../types';
 import { paginationSchema } from './helpers/enums';
 
-export const serviceCategoryEnum = z.enum([
-  'CONSULTATION',
-  'LAB_TEST',
-  'VACCINATION',
-  'PROCEDURE',
-  'PHARMACY',
-  'EMERGENCY',
-  'OTHER'
-]);
+export const serviceCategoryEnum = z.enum(ServiceCategory);
 
 export const serviceStatusEnum = z.enum(['ACTIVE', 'INACTIVE']);
 
@@ -58,6 +51,8 @@ export const ServiceFilterSchema = z.object({
   filters: z
     .array(
       z.object({
+        limit: z.number().positive(),
+        offset: z.number().nonnegative(),
         field: z.string(),
         operator: z.string(),
         value: z.string()

@@ -121,3 +121,22 @@ export type MedicalRecordFilterInput = z.infer<typeof MedicalRecordFilterSchema>
 export type LabTestCreateInput = z.infer<typeof LabTestCreateSchema>;
 export type LabTestUpdateInput = z.infer<typeof LabTestUpdateSchema>;
 export type LabTestFilterInput = z.infer<typeof LabTestFilterSchema>;
+export const AddNewBillInputSchema = z.object({
+  clinicId: z.string().uuid('Invalid Clinic ID'),
+  appointmentId: z.string().uuid('Invalid Appointment ID'),
+
+  // Optional: If provided, adds to this specific bill/payment record
+  billId: z.string().uuid().optional(),
+
+  // Service Details
+  serviceId: z.string().uuid('Invalid Service ID'),
+  serviceDate: z.union([z.date(), z.string().datetime()]).default(() => new Date()),
+
+  // Financials
+  quantity: z.number().int().min(1, 'Quantity must be at least 1').default(1),
+  unitCost: z.number().min(0, 'Unit cost cannot be negative'),
+  totalCost: z.number().min(0, 'Total cost cannot be negative')
+});
+
+// Export the inferred type
+export type AddNewBillInput = z.infer<typeof AddNewBillInputSchema>;

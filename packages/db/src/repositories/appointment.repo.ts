@@ -56,6 +56,66 @@ export async function findForMonth(db: PrismaClient, clinicId: string, startDate
     orderBy: { appointmentDate: 'asc' }
   });
 }
+export async function searchAppointmentsByPatientName(
+  db: PrismaClient,
+  clinicId: string,
+  patientName: string,
+  _validatedLimit: number
+) {
+  return db.appointment.findMany({
+    where: {
+      clinicId,
+      patient: {
+        OR: [
+          {
+            firstName: {
+              contains: patientName,
+              mode: 'insensitive'
+            }
+          },
+          {
+            lastName: {
+              contains: patientName,
+              mode: 'insensitive'
+            }
+          }
+        ]
+      },
+      isDeleted: false
+    },
+    include: {
+      patient: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          phone: true,
+          image: true,
+          colorCode: true,
+          dateOfBirth: true
+        }
+      },
+      doctor: {
+        select: {
+          id: true,
+          name: true,
+          specialty: true,
+          img: true,
+          colorCode: true
+        }
+      },
+      service: {
+        select: {
+          id: true,
+          serviceName: true,
+          price: true
+        }
+      }
+    },
+    orderBy: { appointmentDate: 'asc' }
+  });
+}
+
 export async function findTodaySchedule(
   db: PrismaClient,
   clinicId: string,

@@ -11,7 +11,6 @@
 
 'use server';
 
-import { CACHE_TAGS } from '@naroto/api/cache/utils/tags';
 import { serviceService } from '@naroto/api/services/service.service';
 import { getSession } from '@naroto/api/utils/index';
 import {
@@ -23,6 +22,8 @@ import {
   updateServiceSchema
 } from '@naroto/db/zodSchemas/service.schema';
 import { revalidatePath, revalidateTag } from 'next/cache';
+
+import { CACHE_TAGS } from '@/lib/cache/utils/tags';
 
 /**
  * 🟠 ACTION LAYER

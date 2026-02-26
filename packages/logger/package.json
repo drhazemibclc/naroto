@@ -14,8 +14,8 @@
     "uuid": "^13.0.0"
   },
   "devDependencies": {
-    "@sentry/node": "^10.40.0",
     "@naroto/config": "workspace:*",
+    "@sentry/node": "^10.40.0",
     "@types/express": "^5.0.6",
     "@types/node": "^25.3.0",
     "@types/on-headers": "^1.0.4",

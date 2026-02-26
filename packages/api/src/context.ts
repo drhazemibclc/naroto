@@ -7,7 +7,7 @@ export type Context = {
   session: Session | null;
   user: User | null;
   clinicId?: string | undefined;
-  db: unknown;
+  db: typeof prisma;
   headers: Headers;
 };
 
@@ -21,7 +21,7 @@ export async function createContext(req: NextRequest): Promise<Context> {
     session,
     user,
     clinicId,
-    db: prisma as unknown,
+    db: prisma,
     headers: (await headers()) as Headers
   };
 }

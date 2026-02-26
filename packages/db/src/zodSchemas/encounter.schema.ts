@@ -10,10 +10,6 @@ import {
 } from './helpers/enums';
 
 // ==================== MEDICAL VALIDATION HELPERS ====================
-const icd10CodeSchema = z
-  .string()
-  .regex(/^[A-Z]\d{2}(\.\d{1,3})?$/, 'Invalid ICD-10 code format')
-  .optional();
 const temperatureSchema = z.number().min(30).max(45);
 export const VitalSignsBaseSchema = z
   .object({
@@ -82,25 +78,41 @@ export const VitalSignsBaseSchema = z
   );
 // ==================== DIAGNOSIS SCHEMAS ====================
 export const DiagnosisBaseSchema = z.object({
-  patientId: idSchema,
-  doctorId: idSchema,
-  clinicId: clinicIdSchema.optional(),
-  appointmentId: idSchema.optional(),
-  medicalId: idSchema.optional(),
-  type: encounterTypeSchema.default('CONSULTATION'),
+  // Foreign Keys
+  patientId: z.string().uuid('Invalid Patient ID'),
+  doctorId: z.string().uuid('Invalid Doctor ID'),
+  medicalId: z.string().uuid('Medical Record ID is required'), // Required & Unique in Model
+  clinicId: z.string().uuid().optional().nullable(),
+  appointmentId: z.string().uuid().optional().nullable(),
+
+  // Core Fields
+  date: z.date().default(() => new Date()),
+  symptoms: z.string({ error: 'Symptoms are required' }).min(1, 'Symptoms cannot be empty'),
+  diagnosis: z.string({ error: 'Diagnosis is required' }).min(1, 'Diagnosis cannot be empty'),
+
+  // Optional Fields (Strings in Prisma Model)
+  treatment: z.string().optional().nullable(),
+  notes: z.string().optional().nullable(),
+  prescribedMedications: z.string().optional(),
+  followUpPlan: z.string().optional().nullable(),
+  type: z.string().optional().nullable(), // Separate from typeOfEncounter
+
+  // Enums from Prisma Model
   status: encounterStatusSchema.default('PENDING'),
-  date: dateSchema.default(() => new Date()),
-  symptoms: z.string().min(1, 'Symptoms are required').max(5000, 'Symptoms must be less than 5000 characters'),
-  diagnosis: z.string().min(1, 'Diagnosis is required').max(2000, 'Diagnosis must be less than 2000 characters'),
-  treatment: z.string().max(3000, 'Treatment must be less than 3000 characters').optional(),
-  notes: z.string().max(2000, 'Notes must be less than 2000 characters').optional(),
-  prescribedMedications: z.string().max(2000, 'Medications must be less than 2000 characters').optional(),
-  followUpPlan: z.string().max(2000, 'Follow-up plan must be less than 2000 characters').optional(),
-  icd10Code: icd10CodeSchema,
-  severity: z.enum(['MILD', 'MODERATE', 'SEVERE', 'CRITICAL']).optional(),
-  isChronic: z.boolean().default(false),
-  requiresFollowUp: z.boolean().default(true)
+  typeOfEncounter: encounterTypeSchema.default('CONSULTATION'),
+
+  // Metadata
+  isDeleted: z.boolean().default(false).optional()
 });
+
+/**
+ * Input for Creating a New Diagnosis
+ */
+export const CreateDiagnosisSchema = DiagnosisBaseSchema.omit({
+  isDeleted: true
+});
+
+export type CreateDiagnosisInput = z.infer<typeof CreateDiagnosisSchema>;
 
 export const DiagnosisCreateSchema = DiagnosisBaseSchema.extend({
   clinicId: clinicIdSchema // Required for create

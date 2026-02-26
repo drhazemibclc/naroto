@@ -649,7 +649,46 @@ export class AppointmentService {
         return { success: true, data: updated, error: null };
       });
   }
+  async searchAppointment(query: string, clinicId: string, limit = 10) {
+    const validatedQuery = z.string().min(2).parse(query);
+    const validatedClinicId = z.uuid().parse(clinicId);
+    const validatedLimit = z.number().int().min(1).max(100).default(10).parse(limit);
 
+    try {
+      // Search patients
+      const patients = await patientRepo.searchPatients(this.db, {
+        clinicId: validatedClinicId,
+        query: validatedQuery,
+        limit: validatedLimit
+      });
+
+      // Search appointments by patient name
+      const appointments = await appointmentRepo.searchAppointmentsByPatientName(
+        this.db,
+        validatedClinicId,
+        validatedQuery,
+        validatedLimit
+      );
+
+      return {
+        patients: patients.map(p => ({
+          ...p,
+          fullName: `${p.firstName} ${p.lastName}`
+        })),
+        appointments: appointments.map(a => ({
+          id: a.id,
+          date: a.appointmentDate,
+          patientName: a.patient ? `${a.patient.firstName} ${a.patient.lastName}` : 'Unknown'
+        }))
+      };
+    } catch (error) {
+      logger.error('Failed to search appointments', { error, query: validatedQuery, clinicId: validatedClinicId });
+      throw new AppError('Failed to search appointments', {
+        code: 'APPOINTMENT_SEARCH_ERROR',
+        statusCode: 500
+      });
+    }
+  }
   /**
    * Delete an appointment (soft delete)
    */

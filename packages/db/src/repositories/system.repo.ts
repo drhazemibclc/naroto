@@ -16,15 +16,25 @@ import type { PrismaClient } from '../../generated/client';
 /**
  * Get WHO growth standards by gender and measurement type
  */
-export async function getWHOGrowthStandards(db: PrismaClient, gender: Gender, chartType: ChartType) {
+export async function getWHOGrowthStandards(
+  db: PrismaClient,
+  gender: Gender,
+  chartType: ChartType,
+  p0: { minAgeDays: number | undefined; maxAgeDays: number | undefined; limit: number | undefined }
+) {
   return db.wHOGrowthStandard.findMany({
     where: {
       gender,
-      chartType
+      chartType,
+      ageDays: {
+        gte: p0.minAgeDays,
+        lte: p0.maxAgeDays
+      }
     },
     orderBy: {
       ageDays: 'asc'
-    }
+    },
+    take: p0.limit
   });
 }
 

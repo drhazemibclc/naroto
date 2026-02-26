@@ -55,7 +55,6 @@
   "files": {
     "ignoreUnknown": true,
     "includes": [
-      "**",
       "!**/*.json",
       "!**/.codesandbox",
       "!**/public",

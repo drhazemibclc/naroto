@@ -10,20 +10,21 @@
     }
   },
   "scripts": {
-        "typecheck": "NODE_OPTIONS='--max-old-space-size=8192' tsc --noEmit --emitDeclarationOnly false"
+    "typecheck": "NODE_OPTIONS='--max-old-space-size=8192' tsc --noEmit --emitDeclarationOnly false"
   },
   "dependencies": {
-    "@prisma/client": "catalog:",
     "@naroto/auth": "workspace:*",
     "@naroto/db": "workspace:*",
     "@naroto/env": "workspace:*",
     "@naroto/logger": "workspace:*",
     "@naroto/redis": "workspace:*",
+    "@prisma/client": "catalog:",
     "@trpc/client": "catalog:",
     "@trpc/server": "catalog:",
     "date-fns": "^4.1.0",
     "date-fns-tz": "^3.2.0",
     "dotenv": "catalog:",
+    "nanoid": "^5.1.6",
     "next": "^16.1.6",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",

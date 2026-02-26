@@ -1,5 +1,5 @@
 export { default as cache } from './cache';
-export { redis as default, default as redis } from './client';
+export { default as redis, redis as default } from './client';
 export * from './config';
 export { default as pubsub } from './pubsub';
 export { queueManager } from './queue';

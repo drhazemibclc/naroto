@@ -5,7 +5,6 @@ import { auth } from '.';
 
 // Define roles as per your UserRole enum if applicable,
 // otherwise use strings that match your logic
-type UserRole = 'ADMIN' | 'DOCTOR' | 'STAFF' | 'PATIENT';
 
 async function seedAdmin() {
   console.log('🌱 Starting admin user, clinic, and doctor profile seed...');

@@ -4,6 +4,9 @@
  */
 
 export const CACHE_KEYS = {
+  PAYMENT: (id: string) => `payment:${id}`,
+  PAYMENTS_CLINIC: (clinicId: string) => `clinic:${clinicId}:payments`,
+  VITAL_SIGNS: (id: string) => `vital-signs:${id}`,
   VISIT: (id: string) => `visit:${id}`,
   CLINIC_VACCINATION_STATS: (clinicId: string) => `clinic:${clinicId}:vaccination-stats`,
   PATIENT_DUE_VACCINES: (patientId: string) => `patient:${patientId}:due-vaccines`,
@@ -123,9 +126,6 @@ export const CACHE_KEYS = {
 
   GROWTH_STANDARD: (gender: string, type: string, ageDays: number) => `growth:standard:${gender}:${type}:${ageDays}`,
   DRUG: (id: string) => `drug:${id}`,
-  DRUG_DOSAGE: (id: string) => `drug:dosage:${id}`,
-  VACCINE_DUE: (patientId: string) => `vaccine:due:${patientId}`,
-
   // Version tags for bulk invalidation
   CLINIC_VERSION: (clinicId: string) => `clinic:${clinicId}:version`,
   PATIENT_VERSION: (patientId: string) => `patient:${patientId}:version`,
@@ -146,6 +146,7 @@ export const CACHE_KEYS = {
 } as const;
 
 export const CACHE_TTL = {
+  VITAL_SIGNS: 60 * 60, // 1 hour
   PATIENT_IMMUNIZATIONS: 60 * 60, // 1 hour
   DRUG_DOSAGE: 60 * 60, // 1 hour
   IMMUNIZATION: 60 * 60, // 1 hour
@@ -200,8 +201,6 @@ export const CACHE_TTL = {
 
   GROWTH_STANDARD: 60 * 60 * 24 * 30, // 30 days
   DRUG: 60 * 60 * 24, // 1 day
-  DRUG_DOSAGE: 60 * 60 * 24, // 1 day
-  VACCINE_DUE: 60 * 60, // 1 hour
 
   // Version keys - permanent (until explicitly updated)
   VERSION: null // no expiry

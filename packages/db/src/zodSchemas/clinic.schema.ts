@@ -79,3 +79,22 @@ export const clinicCreateSchema = z.object({
 });
 export type DashboardStatsInput = z.infer<typeof DashboardStatsInputSchema>;
 export type MedicalRecordsSummaryInput = z.infer<typeof MedicalRecordsSummaryInputSchema>;
+export const PaymentFilterSchema = z.object({
+  // Required for multi-tenancy security
+  clinicId: z.string().uuid('Invalid Clinic ID format'),
+
+  // Pagination
+  skip: z.number().int().min(0).default(0),
+  take: z.number().int().min(1).max(100).default(20),
+
+  // Optional Filters
+  search: z.string().optional(),
+
+  // You might want to add these later for more robust filtering:
+  status: z.enum(['PAID', 'PENDING', 'CANCELLED', 'REFUNDED']).optional(),
+  startDate: z.date().optional(),
+  endDate: z.date().optional()
+});
+
+// Export the inferred type
+export type PaymentFilterInput = z.infer<typeof PaymentFilterSchema>;

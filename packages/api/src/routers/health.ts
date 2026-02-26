@@ -17,7 +17,7 @@ export const healthRouter = createTRPCRouter({
       // Check Redis if configured
       let redisStatus = 'not_configured';
       if (redis) {
-        await redis.getClient().ping();
+        await redis.ping();
         redisStatus = 'connected';
       }
 

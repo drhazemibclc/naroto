@@ -201,7 +201,11 @@ export class SystemService {
       }
 
       // Get reference standards
-      const standards = await systemRepo.getWHOGrowthStandards(this.db, gender, chartType);
+      const standards = await systemRepo.getWHOGrowthStandards(this.db, gender, chartType, {
+        minAgeDays: undefined,
+        maxAgeDays: undefined,
+        limit: undefined
+      });
 
       if (!standards || standards.length === 0) {
         throw new NotFoundError(`Growth standards for ${gender} ${chartType}`);
@@ -309,11 +313,12 @@ export class SystemService {
       const bmi = weightKg / (heightM * heightM);
 
       // Calculate BMI percentile
+      // Note: BMI uses BFA (BMI-for-age) chart type
       const percentile = await this.calculateGrowthPercentile(
         '', // patientId placeholder
         gender,
-        'WFA',
-        'Weight',
+        'BFA' as ChartType,
+        'Weight' as MeasurementType,
         { ageDays, measurementType: 'bmi', value: bmi }
       );
 
@@ -801,11 +806,11 @@ export class SystemService {
   async clearSystemCaches() {
     try {
       const patterns = [
-        CACHE_KEYS.GROWTH_STANDARD_PATTERN('*', '*'),
-        CACHE_KEYS.GROWTH_PERCENTILE_PATTERN('*'),
-        CACHE_KEYS.DRUG_PATTERN('*'),
-        CACHE_KEYS.DRUG_DOSAGE_PATTERN('*'),
-        CACHE_KEYS.VACCINE_DUE_PATTERN('*')
+        CACHE_KEYS.GROWTH_STANDARD_PATTERN,
+        CACHE_KEYS.GROWTH_PERCENTILE_PATTERN,
+        CACHE_KEYS.DRUG_PATTERN,
+        CACHE_KEYS.DRUG_DOSAGE_PATTERN,
+        CACHE_KEYS.VACCINE_DUE_PATTERN
       ];
 
       let totalCleared = 0;
@@ -853,6 +858,85 @@ export class SystemService {
     }
   }
 
+  async getGrowthStandardByAge(gender: Gender, chartType: ChartType, ageDays: number): Promise<GrowthStandard | null> {
+    try {
+      const cacheKey = CACHE_KEYS.GROWTH_STANDARD(gender, chartType, ageDays);
+
+      // Check cache
+      if (this.CACHE_ENABLED) {
+        const cached = await cacheService.get(cacheKey);
+        if (cached) {
+          logger.debug('Growth standard cache hit', { gender, chartType, ageDays });
+          return cached as GrowthStandard;
+        }
+      }
+
+      // Get from repository
+      const standard = await systemRepo.getGrowthStandardByAge(this.db, gender, chartType, ageDays);
+
+      if (standard && this.CACHE_ENABLED) {
+        await cacheService.set(cacheKey, standard, CACHE_TTL.GROWTH_STANDARD);
+      }
+
+      return standard;
+    } catch (error) {
+      logger.error('Failed to get growth standard by age', { error, gender, chartType, ageDays });
+      throw new AppError('Failed to get growth standard', {
+        code: 'GROWTH_STANDARD_FETCH_ERROR',
+        statusCode: 500
+      });
+    }
+  }
+
+  /**
+   * Get growth standards with filters
+   */
+  async getWHOStandards(
+    gender: Gender,
+    chartType: ChartType,
+    options?: {
+      minAgeDays?: number;
+      maxAgeDays?: number;
+      limit?: number;
+    }
+  ): Promise<GrowthStandard[]> {
+    try {
+      const cacheKey = CACHE_KEYS.WHO_STANDARDS(
+        gender,
+        chartType,
+        options?.minAgeDays || 0,
+        options?.maxAgeDays || 240
+      );
+
+      // Check cache
+      if (this.CACHE_ENABLED) {
+        const cached = await cacheService.get(cacheKey);
+        if (cached) {
+          logger.debug('WHO standards cache hit', { gender, chartType });
+          return cached as GrowthStandard[];
+        }
+      }
+
+      // Get from repository
+      const standards = await systemRepo.getWHOGrowthStandards(this.db, gender, chartType, {
+        minAgeDays: options?.minAgeDays,
+        maxAgeDays: options?.maxAgeDays,
+        limit: options?.limit
+      });
+
+      if (standards && this.CACHE_ENABLED) {
+        await cacheService.set(cacheKey, standards, CACHE_TTL.WHO_STANDARDS);
+      }
+
+      return standards;
+    } catch (error) {
+      logger.error('Failed to get WHO standards', { error, gender, chartType });
+      throw new AppError('Failed to get WHO standards', {
+        code: 'WHO_STANDARDS_FETCH_ERROR',
+        statusCode: 500
+      });
+    }
+  }
   // ==================== PRIVATE HELPER METHODS ====================
 
   /**
@@ -1258,3 +1342,4 @@ export class SystemService {
     return Math.abs(velocityPerDay) < 1;
   }
 }
+export const systemService = new SystemService();

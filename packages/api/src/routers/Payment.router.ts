@@ -1,17 +1,45 @@
-import prisma from '@naroto/db';
-import type { Payment, Prisma } from '@naroto/db/browser';
-import { AddNewBillInputSchema, DiagnosisSchema, PaymentSchema } from '@naroto/db/zodSchemas/index';
+/**
+ * 🟣 PAYMENTS MODULE - tRPC ROUTER
+ *
+ * RESPONSIBILITIES:
+ * - tRPC procedure definitions
+ * - Permission checks (via middleware)
+ * - Input validation via schema
+ * - Delegates to service layer
+ * - NO business logic
+ * - NO database calls
+ * - NO Next.js cache imports
+ */
+
+// Import services from @naroto/db/services
+import { medicalService, paymentService } from '@naroto/db/services/index';
+
+// Import schemas from @naroto/db/zodSchemas
+
+import {
+  type AddNewBillInput,
+  AddNewBillInputSchema,
+  DiagnosisCreateSchema,
+  type PaymentFilterInput,
+  type PaymentInput,
+  PaymentSchema
+} from '@naroto/db/zodSchemas/index';
 import type { AnyRouter } from '@trpc/server';
 import { TRPCError } from '@trpc/server';
-import z from 'zod';
+import { z } from 'zod';
 
 import { adminProcedure, createTRPCRouter, protectedProcedure } from '..';
 
-const AddDiagnosisInputSchema = DiagnosisSchema.extend({
-  appointmentId: z.string() // string id of appointment
+// Extended schema for diagnosis with appointment
+const AddDiagnosisInputSchema = DiagnosisCreateSchema.extend({
+  appointmentId: z.string().uuid()
 });
 
 export const paymentsRouter: AnyRouter = createTRPCRouter({
+  /**
+   * Get paginated payment records
+   * Service handles caching internally
+   */
   getPaymentRecords: adminProcedure
     .input(
       z.object({
@@ -20,197 +48,153 @@ export const paymentsRouter: AnyRouter = createTRPCRouter({
         search: z.string().optional()
       })
     )
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
       try {
+        const clinicId = ctx.session?.user.clinic?.id;
+        if (!clinicId) {
+          throw new TRPCError({
+            code: 'UNAUTHORIZED',
+            message: 'Clinic ID not found'
+          });
+        }
+
         const PAGE_NUMBER = Number(input.page) <= 0 ? 1 : Number(input.page);
         const LIMIT = Number(input.limit) || 10;
         const SKIP = (PAGE_NUMBER - 1) * LIMIT;
-        const search = input.search || '';
 
-        const where: Prisma.PaymentWhereInput = {
-          OR: [
-            {
-              patient: {
-                firstName: { contains: search, mode: 'insensitive' }
-              }
-            },
-            {
-              patient: {
-                lastName: { contains: search, mode: 'insensitive' }
-              }
-            },
-            { patientId: { contains: search, mode: 'insensitive' } }
-          ]
+        const filter: PaymentFilterInput = {
+          clinicId,
+          search: input.search,
+          skip: SKIP,
+          take: LIMIT
         };
 
-        const [data, totalRecords] = await Promise.all([
-          prisma.payment.findMany({
-            where,
-            include: {
-              patient: {
-                select: {
-                  firstName: true,
-                  lastName: true,
-                  dateOfBirth: true,
-                  image: true,
-                  colorCode: true,
-                  gender: true
-                }
-              }
-            },
-            skip: SKIP,
-            take: LIMIT,
-            orderBy: { createdAt: 'desc' }
-          }),
-          prisma.payment.count({ where })
-        ]);
-
-        const totalPages = Math.ceil(totalRecords / LIMIT);
+        const result = await paymentService.getPayments(filter);
 
         return {
-          data,
-          totalRecords,
-          totalPages,
+          data: result.data,
+          totalRecords: result.total,
+          totalPages: Math.ceil(result.total / LIMIT),
           currentPage: PAGE_NUMBER
         };
       } catch (error) {
-        console.error(error);
+        if (error instanceof TRPCError) throw error;
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
-          message: 'Failed to retrieve payment records.'
+          message: error instanceof Error ? error.message : 'Failed to retrieve payment records'
         });
       }
     }),
 
+  /**
+   * Add diagnosis to an appointment
+   * Service handles business logic and database operations
+   */
   addDiagnosis: protectedProcedure.input(AddDiagnosisInputSchema).mutation(async ({ input, ctx }) => {
-    const { appointmentId, ...validatedData } = input;
-    let medicalRecord = null;
-    const clinicId = ctx.clinicId ?? '';
-    if (!validatedData.medicalId) {
-      medicalRecord = await prisma.medicalRecords.create({
-        data: {
-          patientId: validatedData.patientId,
-          doctorId: validatedData.doctorId,
-          appointmentId,
-          clinicId
-        }
-      });
-    }
+    try {
+      const clinicId = ctx.session?.user.clinic?.id;
+      const _userId = ctx.user.id;
 
-    const medId = validatedData.medicalId || medicalRecord?.id;
-    if (typeof medId !== 'string') {
-      throw new TRPCError({
-        code: 'INTERNAL_SERVER_ERROR',
-        message: 'Medical Record ID is invalid or missing.'
-      });
-    }
+      if (!clinicId) {
+        throw new TRPCError({
+          code: 'UNAUTHORIZED',
+          message: 'Clinic ID not found'
+        });
+      }
 
-    await prisma.diagnosis.create({
-      data: {
-        medicalId: input.medicalId,
+      // 1. Map input to match Prisma Model field names
+      // Ensure medicalId is passed correctly as it is required & unique
+      const result = await medicalService.createDiagnosis({
         patientId: input.patientId,
         doctorId: input.doctorId,
+        clinicId,
+        appointmentId: input.appointmentId,
+        date: input.date ?? new Date(),
+
+        // Model field names
         symptoms: input.symptoms,
         diagnosis: input.diagnosis,
-        // Fix: Explicitly convert undefined to null
-        notes: input.notes ?? null,
-        prescribedMedications: input.prescribedMedications ?? null,
-        followUpPlan: input.followUpPlan ?? null
-      }
-    });
+        treatment: input.treatment,
+        notes: input.notes,
+        prescribedMedications: input.prescribedMedications ?? '',
+        followUpPlan: input.followUpPlan,
 
-    return {
-      success: true,
-      message: 'Bill added successfully'
-    };
-  }),
-
-  addNewBill: protectedProcedure.input(AddNewBillInputSchema).mutation(async ({ input }) => {
-    let billInfo: Payment | null | undefined = null;
-
-    // If no billId is provided, find or create one
-    if (input.billId === undefined || input.billId === null) {
-      const info = await prisma.appointment.findUnique({
-        where: { id: input.appointmentId },
-        select: {
-          id: true,
-          patientId: true,
-          bills: true
-        }
+        // Enums mapping
+        status: input.status,
+        type: input.type // Map string type if used separately
       });
 
-      if (!info?.patientId) {
-        throw new TRPCError({
-          code: 'NOT_FOUND',
-          message: 'Appointment or patient not found for billing.'
-        });
-      }
-
-      if (info.bills.length === 0) {
-        billInfo = await prisma.payment.create({
-          data: {
-            appointmentId: info.id,
-            patientId: info.patientId,
-            billDate: new Date(),
-            paymentDate: new Date(),
-            discount: 0.0,
-            amountPaid: 0.0,
-            totalAmount: 0.0
-          }
-        });
-      } else {
-        billInfo = info.bills[0];
-      }
-    } else {
-      // If a billId is provided, find the existing bill
-      billInfo = await prisma.payment.findUnique({
-        where: { id: input.billId }
-      });
-    }
-
-    if (!billInfo) {
+      return {
+        success: true,
+        message: 'Diagnosis added successfully',
+        data: result
+      };
+    } catch (error) {
+      console.error('AddDiagnosis Error:', error);
+      if (error instanceof TRPCError) throw error;
       throw new TRPCError({
-        code: 'NOT_FOUND',
-        message: 'Existing bill not found with provided ID.'
+        code: 'INTERNAL_SERVER_ERROR',
+        message: error instanceof Error ? error.message : 'Failed to add diagnosis'
       });
     }
-
-    await prisma.patientBill.create({
-      data: {
-        billId: billInfo.id,
-        serviceId: input.serviceId,
-        serviceDate: new Date(input.serviceDate),
-        quantity: Number(input.quantity),
-        unitCost: Number(input.unitCost),
-        totalCost: Number(input.totalCost)
+  }),
+  /**
+   * Add a new bill line item to an existing payment
+   * Service handles business logic and database operations
+   */
+  addNewBill: protectedProcedure.input(AddNewBillInputSchema).mutation(async ({ ctx, input }) => {
+    try {
+      const clinicId = ctx.session?.user.clinic?.id;
+      if (!clinicId) {
+        throw new TRPCError({
+          code: 'UNAUTHORIZED',
+          message: 'Clinic ID not found'
+        });
       }
-    });
 
-    return {
-      success: true,
-      message: 'Bill added successfully'
-    };
+      const result = await paymentService.addBillItem(input as unknown as AddNewBillInput);
+
+      return {
+        success: true,
+        message: 'Bill item added successfully',
+        data: result
+      };
+    } catch (error) {
+      if (error instanceof TRPCError) throw error;
+      throw new TRPCError({
+        code: 'INTERNAL_SERVER_ERROR',
+        message: error instanceof Error ? error.message : 'Failed to add bill item'
+      });
+    }
   }),
 
-  generateBill: protectedProcedure.input(PaymentSchema).mutation(async ({ input }) => {
-    const discountAmount = (Number(input.discount) / 100) * Number(input.totalAmount);
+  /**
+   * Generate final bill (complete payment)
+   * Service handles business logic and database operations
+   */
+  generateBill: protectedProcedure.input(PaymentSchema).mutation(async ({ ctx, input }) => {
+    try {
+      const clinicId = ctx.session?.user.clinic?.id;
+      if (!clinicId) {
+        throw new TRPCError({
+          code: 'UNAUTHORIZED',
+          message: 'Clinic ID not found'
+        });
+      }
 
-    const res = await prisma.payment.update({
-      data: {
-        billDate: input.billDate,
-        discount: discountAmount,
-        totalAmount: Number(input.totalAmount)
-      },
-      where: { id: input.id }
-    });
+      const result = await paymentService.generateBill(input as PaymentInput, clinicId);
 
-    await prisma.appointment.update({
-      data: {
-        status: 'COMPLETED'
-      },
-      where: { id: res.appointmentId }
-    });
-
-    return { message: 'Bill generated successfully' };
+      return {
+        success: true,
+        message: 'Bill generated successfully',
+        data: result
+      };
+    } catch (error) {
+      if (error instanceof TRPCError) throw error;
+      throw new TRPCError({
+        code: 'INTERNAL_SERVER_ERROR',
+        message: error instanceof Error ? error.message : 'Failed to generate bill'
+      });
+    }
   })
 });

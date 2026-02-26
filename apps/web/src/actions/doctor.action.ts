@@ -65,7 +65,7 @@ export async function getDoctorByIdAction(id: string) {
   }
 
   // 2. Delegate to cached service
-  const { getCachedDoctorById } = await import('@naroto/api/cache/doctor.cache');
+  const { getCachedDoctorById } = await import('@/lib/cache/doctor.cache');
   const doctor = await getCachedDoctorById(id, session.user.clinic.id);
 
   return { success: true, data: doctor };

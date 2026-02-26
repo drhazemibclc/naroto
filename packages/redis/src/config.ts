@@ -1,4 +1,5 @@
 import logger from '@naroto/logger';
+
 import type { RedisConfig } from './types';
 
 // const isDevelopment = process.env.NODE_ENV === 'development';
@@ -12,17 +13,17 @@ export const redisConfig: RedisConfig = {
   keyPrefix: process.env.REDIS_PREFIX || 'pediacare:',
   tls: process.env.REDIS_TLS === 'true',
   maxRetriesPerRequest: 3,
- retryStrategy: (times: number) => {
-     if (times > 10) {
-       logger.error('Redis max retries reached')
-       return null
-     }
-   const delay = Math.min(times * 50, 2000);
+  retryStrategy: (times: number) => {
+    if (times > 10) {
+      logger.error('Redis max retries reached');
+      return null;
+    }
+    const delay = Math.min(times * 50, 2000);
     return delay;
   },
   enableReadyCheck: true,
   lazyConnect: isTest
-}as const
+} as const;
 
 export const cacheConfig = {
   defaultTTL: 3600, // 1 hour
@@ -35,27 +36,27 @@ export const cacheConfig = {
 export const queueConfig = {
   defaultAttempts: 3,
   defaultTimeout: 30_000, // 30 seconds
-    defaultBackoff: 5000, // 5 seconds
+  defaultBackoff: 5000, // 5 seconds
 
- concurrency: {
-    'email': 5,
-    'notification': 10,
-    'reminder': 10,
-    'report': 2,
-    'export': 1,
-    'backup': 1,
+  concurrency: {
+    email: 5,
+    notification: 10,
+    reminder: 10,
+    report: 2,
+    export: 1,
+    backup: 1,
     'cache-warm': 3,
-    'growth-calculation': 5,
+    'growth-calculation': 5
   },
   retention: {
     completed: 24 * 60 * 60 * 1000, // 24 hours
-    failed: 7 * 24 * 60 * 60 * 1000, // 7 days
+    failed: 7 * 24 * 60 * 60 * 1000 // 7 days
   },
-    limiter: {
+  limiter: {
     max: 100,
     duration: 1000
   }
-} as const
+} as const;
 
 export const keys = {
   // Patient-related keys

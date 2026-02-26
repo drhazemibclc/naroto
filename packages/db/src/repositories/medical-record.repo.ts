@@ -210,7 +210,14 @@ export async function findMedicalRecordsByClinic(
     skip: options?.offset || 0
   });
 }
-
+export async function countMedicalRecordsByPatient(db: PrismaClient, patientId: string) {
+  return db.medicalRecords.count({
+    where: {
+      patientId,
+      isDeleted: false
+    }
+  });
+}
 export async function countMedicalRecordsByClinic(db: PrismaClient, clinicId: string, search?: string) {
   const where: Prisma.MedicalRecordsWhereInput = {
     clinicId,

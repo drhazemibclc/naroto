@@ -1,3 +1,5 @@
+import { appointmentService } from '@naroto/db/services/appointment.service';
+import { patientService } from '@naroto/db/services/patient.service';
 import type { AnyRouter } from '@trpc/server';
 import { z } from 'zod';
 
@@ -21,59 +23,21 @@ export const searchRouter: AnyRouter = createTRPCRouter({
     }
 
     // Search patients
-    const patients = await ctx.db.patient.findMany({
-      where: {
-        clinicId,
-        isDeleted: false,
-        OR: [
-          { firstName: { contains: query, mode: 'insensitive' } },
-          { lastName: { contains: query, mode: 'insensitive' } },
-          { email: { contains: query, mode: 'insensitive' } },
-          { phone: { contains: query } }
-        ]
-      },
-      take: limit,
-      select: {
-        id: true,
-        firstName: true,
-        lastName: true,
-        dateOfBirth: true,
-        phone: true,
-        email: true
-      }
+    const patients = await patientService.searchPatients({
+      query,
+      clinicId,
+      searchBy: 'name',
+      limit
     });
 
-    // Search appointments
-    const appointments = await ctx.db.appointment.findMany({
-      where: {
-        clinicId,
-        isDeleted: false,
-        patient: {
-          OR: [
-            { firstName: { contains: query, mode: 'insensitive' } },
-            { lastName: { contains: query, mode: 'insensitive' } }
-          ]
-        }
-      },
-      take: limit,
-      select: {
-        id: true,
-        appointmentDate: true,
-        patient: {
-          select: {
-            firstName: true,
-            lastName: true
-          }
-        }
-      }
-    });
+    const appointments = await appointmentService.searchAppointment(query, clinicId, limit);
 
     return {
       patients: patients.map((p: { firstName: string; lastName: string }) => ({
         ...p,
         fullName: `${p.firstName} ${p.lastName}`
       })),
-      appointments: appointments.map(
+      appointments: appointments.appointments.map(
         (a: { id: string; appointmentDate: Date; patient: { firstName: string; lastName: string } }) => ({
           id: a.id,
           date: a.appointmentDate,

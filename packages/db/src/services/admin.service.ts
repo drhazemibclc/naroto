@@ -31,6 +31,7 @@ import * as staffRepo from '../repositories/staff.repo';
 import * as vaccinationRepo from '../repositories/vac.repository';
 import { toNumber } from '../utils';
 import {
+  CreateNewDoctorInputSchema,
   type CreateStaffInput,
   type DeleteInput,
   DeleteInputSchema,
@@ -1309,7 +1310,80 @@ export class AdminService {
     // Assume 30 minutes per appointment
     return Math.ceil((pendingAppointments * 30) / availableDoctors);
   }
+  async createDoctor(input: z.infer<typeof CreateNewDoctorInputSchema>, userId: string) {
+    // 1. Validate Input
+    const validated = CreateNewDoctorInputSchema.parse(input);
+    const validatedClinicId = z.uuid().parse(validated.clinicId);
 
+    return this.db.$transaction(async tx => {
+      try {
+        // 2. Check for existing doctor (by email or specialization if needed)
+        const existing = await doctorRepo.findDoctorById?.(
+          tx as unknown as PrismaClient,
+          validated.email,
+          validatedClinicId
+        );
+
+        if (existing) {
+          throw new ConflictError('A doctor with this email already exists in this clinic');
+        }
+
+        const doctorId = randomUUID();
+        const now = new Date();
+
+        // 3. Create Doctor Profile & Working Days
+        // We use the repository to handle the relational mapping
+        const doctor = await doctorRepo.createDoctor(tx as unknown as PrismaClient, {
+          id: doctorId,
+          name: validated.name,
+          email: validated.email,
+          phone: validated.phone,
+          appointmentPrice: new Prisma.Decimal(validated.appointmentPrice ?? 0),
+          specialty: validated.specialty,
+          licenseNumber: validated.licenseNumber,
+          isActive: true,
+          workingDays: validated.workSchedule
+            ? {
+                create: validated.workSchedule.map(schedule => ({
+                  id: randomUUID(),
+                  day: schedule.day,
+                  startTime: schedule.startTime,
+                  endTime: schedule.endTime,
+                  isAvailable: true,
+                  clinic: { connect: { id: validatedClinicId } }
+                }))
+              }
+            : undefined,
+          createdAt: now,
+          updatedAt: now
+        });
+
+        // 4. Invalidate Relevant Caches
+        if (this.CACHE_ENABLED) {
+          await Promise.all([
+            cacheService.invalidateClinicCaches(validatedClinicId),
+            cacheService.invalidate(CACHE_KEYS.DOCTORS(validatedClinicId)),
+            cacheService.invalidate(CACHE_KEYS.DOCTORS_AVAILABLE(validatedClinicId))
+          ]);
+        }
+
+        logger.info('Doctor created successfully', {
+          doctorId: doctor.id,
+          clinicId: validatedClinicId,
+          createdBy: userId
+        });
+
+        return doctor;
+      } catch (error) {
+        logger.error('Failed to create doctor', { error, input: validated });
+        if (error instanceof ConflictError) throw error;
+        throw new AppError('Failed to create doctor profile', {
+          code: 'DOCTOR_CREATE_ERROR',
+          statusCode: 500
+        });
+      }
+    });
+  }
   private calculateTopDoctors(appointments: Awaited<ReturnType<typeof appointmentRepo.findForMonth>>): Array<{
     doctorId: string;
     doctorName: string;

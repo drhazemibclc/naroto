@@ -1,8 +1,6 @@
 import { initTRPC, TRPCError } from '@trpc/server';
 import superjson from 'superjson';
 
-import type { CacheProfile } from './cache';
-import { withCache } from './cache/utils/cache-strategy';
 import type { Context } from './context';
 import { enhancedErrorFormatter } from './utils/validation';
 
@@ -145,37 +143,6 @@ export const clinicProcedure = publicProcedure.use(authMiddleware).use(clinicAcc
 // Role-specific procedures
 export const doctorProcedure = clinicProcedure.use(createRoleMiddleware(['DOCTOR', 'ADMIN']));
 export const staffProcedure = clinicProcedure.use(createRoleMiddleware(['STAFF', 'DOCTOR', 'ADMIN']));
-
-// Cached procedures for pediatric data
-export const cachedProcedure = (options: { profile: CacheProfile; tags: string[]; prefix?: string }) =>
-  protectedProcedure.use(clinicAccessMiddleware).use(
-    t.middleware(async ({ ctx, next, path, input: rawInput }) => {
-      const { profile, tags, prefix } = options;
-
-      const enhancedFn = withCache(
-        async () => {
-          return next({
-            ctx: {
-              ...ctx,
-              _cache: {
-                profile,
-                tags: [...tags, `trpc:${path}`],
-                prefix: prefix ?? '',
-                input: rawInput
-              }
-            }
-          });
-        },
-        {
-          profile,
-          tags: [...tags, `trpc:${path}`],
-          prefix: prefix ?? ''
-        }
-      );
-
-      return enhancedFn();
-    })
-  );
 
 // Export t instance and router for convenience
 export const { middleware } = t;

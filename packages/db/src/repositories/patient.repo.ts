@@ -20,6 +20,50 @@ export async function countActivePatients(db: PrismaClient, clinicId: string): P
   });
 }
 
+export async function searchPatients(
+  db: PrismaClient,
+  params: {
+    clinicId: string;
+    query: string;
+    searchBy?: 'name' | 'phone' | 'email';
+    limit?: number;
+  }
+) {
+  const { clinicId, query, searchBy = 'name', limit = 10 } = params;
+
+  const whereClause =
+    searchBy === 'phone'
+      ? { phone: { contains: query, mode: 'insensitive' as const } }
+      : searchBy === 'email'
+        ? { email: { contains: query, mode: 'insensitive' as const } }
+        : {
+            OR: [
+              { firstName: { contains: query, mode: 'insensitive' as const } },
+              { lastName: { contains: query, mode: 'insensitive' as const } }
+            ]
+          };
+
+  return db.patient.findMany({
+    where: {
+      clinicId,
+      isDeleted: false,
+      ...whereClause
+    },
+    orderBy: { createdAt: 'desc' },
+    take: limit,
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      dateOfBirth: true,
+      gender: true,
+      phone: true,
+      image: true,
+      colorCode: true
+    }
+  });
+}
+
 export async function findPatientsWithFilters(
   db: PrismaClient,
   clinicId: string,
@@ -129,7 +173,7 @@ export async function getPatientCountByDoctor(
 export async function findRecentPatients(
   db: PrismaClient,
   clinicId: string,
-  limit = 5
+  limit: number
 ): Promise<
   Array<{
     id: string;
@@ -161,10 +205,13 @@ export async function findRecentPatients(
       _count: {
         select: {
           encounters: true,
-          appointments: {
-            where: { isDeleted: false }
-          }
+          appointments: true
         }
+      },
+      appointments: {
+        take: 1,
+        orderBy: { appointmentDate: 'desc' },
+        select: { appointmentDate: true }
       }
     }
   });

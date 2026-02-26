@@ -14,10 +14,12 @@
 
 import logger from '@naroto/logger';
 import redis from '@naroto/redis';
+import type Decimal from 'decimal.js';
 
 import { prisma } from '../client';
 import * as serviceRepository from '../repositories/service.repo';
 import type { ServiceCategory, Status } from '../types';
+import { toNumber } from '../utils';
 import type { ServiceFilters } from '../zodSchemas';
 
 const CACHE_TTL = 300; // 5 minutes
@@ -306,7 +308,7 @@ export async function updateService(
   data: {
     serviceName?: string;
     description?: string;
-    price?: number;
+    price?: Decimal | number;
     category?: ServiceCategory;
     duration?: number;
     isAvailable?: boolean;
@@ -325,7 +327,7 @@ export async function updateService(
     }
 
     // Validate price if provided
-    if (data.price !== undefined && data.price <= 0) {
+    if (data.price !== undefined && toNumber(data.price) <= 0) {
       throw new Error('Price must be greater than 0');
     }
 

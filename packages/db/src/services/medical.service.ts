@@ -13,7 +13,7 @@ import * as medicalRecordRepo from '../repositories/medical-record.repo';
 import * as prescriptionRepo from '../repositories/prescription.repo';
 import * as validationRepo from '../repositories/validation.repo';
 import * as vitalSignsRepo from '../repositories/vital-signs.repo';
-import type { LabStatus } from '../types';
+import type { EncounterStatus, LabStatus } from '../types';
 
 /**
  * 🔵 MEDICAL SERVICE
@@ -30,186 +30,6 @@ export class MedicalService {
   constructor(private readonly db: typeof prisma = prisma) {}
 
   // ==================== DIAGNOSIS SERVICES ====================
-
-  async getDiagnosisById(id: string, clinicId: string) {
-    const cacheKey = `${CACHE_KEYS.DIAGNOSIS}${id}`;
-
-    try {
-      // Try cache first
-      if (this.CACHE_ENABLED) {
-        const cached = await redis.get(cacheKey);
-        if (cached) {
-          logger.debug('Cache hit for diagnosis', { id });
-          return JSON.parse(cached);
-        }
-      }
-
-      // Query repository
-      const diagnosis = await diagnosisRepo.findDiagnosisById(this.db, id);
-
-      if (!diagnosis || diagnosis.patient?.clinicId !== clinicId) {
-        return null;
-      }
-
-      // Cache the result
-      if (this.CACHE_ENABLED && diagnosis) {
-        await redis.setex(cacheKey, CACHE_TTL.DIAGNOSIS, JSON.stringify(diagnosis));
-      }
-
-      return diagnosis;
-    } catch (error) {
-      logger.error('Failed to get diagnosis', { error, id });
-      throw new Error('Failed to retrieve diagnosis');
-    }
-  }
-
-  async getPatientDiagnoses(
-    patientId: string,
-    clinicId: string,
-    options?: {
-      startDate?: Date;
-      endDate?: Date;
-      type?: string;
-      limit?: number;
-      offset?: number;
-    }
-  ) {
-    try {
-      // Validate patient exists
-      const patient = await validationRepo.checkPatientExists(this.db, patientId, clinicId);
-      if (!patient) {
-        return { diagnoses: [], total: 0 };
-      }
-
-      // Query repository
-      const diagnoses = await diagnosisRepo.findDiagnosesByPatient(this.db, patientId, options);
-      const total = await diagnosisRepo.countDiagnosesByPatient(this.db, patientId);
-
-      return { diagnoses, total };
-    } catch (error) {
-      logger.error('Failed to get patient diagnoses', { error, patientId });
-      throw new Error('Failed to retrieve diagnoses');
-    }
-  }
-
-  async createDiagnosis(data: {
-    patientId: string;
-    doctorId: string;
-    appointmentId?: string | null;
-    clinicId: string;
-    type?: string | null;
-    symptoms: string;
-    diagnosis: string;
-    treatment?: string | null;
-    notes?: string | null;
-    followUpPlan?: string | null;
-    date: Date;
-  }) {
-    try {
-      // Validate entities exist
-      const [patient, medicalRecord] = await Promise.all([
-        validationRepo.checkPatientExists(this.db, data.patientId, data.clinicId),
-        medicalRecordRepo.findMedicalRecordsByPatient(this.db, data.patientId, { limit: 1 })
-      ]);
-
-      if (!patient) {
-        throw new Error('Patient not found');
-      }
-
-      const medicalId = medicalRecord[0]?.id;
-      if (!medicalId) {
-        throw new Error('No medical record found for patient');
-      }
-
-      const now = new Date();
-      const diagnosis = await diagnosisRepo.createDiagnosis(this.db, {
-        id: randomUUID(),
-        ...data,
-        medicalId,
-        createdAt: now,
-        updatedAt: now
-      });
-
-      // Invalidate cache
-      if (this.CACHE_ENABLED) {
-        await redis.del(`${CACHE_KEYS.DIAGNOSIS}${diagnosis.id}`);
-        await redis.del(`${CACHE_KEYS.PATIENT_DIAGNOSES}${data.patientId}`);
-      }
-
-      logger.info('Diagnosis created', { diagnosisId: diagnosis.id, patientId: data.patientId });
-      return diagnosis;
-    } catch (error) {
-      logger.error('Failed to create diagnosis', { error, data });
-      throw error;
-    }
-  }
-
-  async updateDiagnosis(
-    id: string,
-    clinicId: string,
-    data: {
-      diagnosis?: string;
-      type?: string | null;
-      symptoms?: string;
-      treatment?: string | null;
-      notes?: string | null;
-      followUpPlan?: string | null;
-    }
-  ) {
-    try {
-      // Verify ownership
-      const existing = await diagnosisRepo.findDiagnosisById(this.db, id);
-      if (!existing || existing.patient?.clinicId !== clinicId) {
-        throw new Error('Diagnosis not found');
-      }
-
-      const updated = await diagnosisRepo.updateDiagnosis(this.db, id, {
-        ...data,
-        updatedAt: new Date()
-      });
-
-      // Invalidate cache
-      if (this.CACHE_ENABLED) {
-        await redis.del(`${CACHE_KEYS.DIAGNOSIS}${id}`);
-        await redis.del(`${CACHE_KEYS.PATIENT_DIAGNOSES}${existing.patientId}`);
-      }
-
-      logger.info('Diagnosis updated', { diagnosisId: id });
-      return updated;
-    } catch (error) {
-      logger.error('Failed to update diagnosis', { error, id });
-      throw error;
-    }
-  }
-
-  async deleteDiagnosis(id: string, clinicId: string) {
-    try {
-      // Verify ownership
-      const existing = await diagnosisRepo.findDiagnosisById(this.db, id);
-      if (!existing || existing.patient?.clinicId !== clinicId) {
-        throw new Error('Diagnosis not found');
-      }
-
-      const now = new Date();
-      await diagnosisRepo.softDeleteDiagnosis(this.db, id, {
-        isDeleted: true,
-        deletedAt: now,
-        updatedAt: now
-      });
-
-      // Invalidate cache
-      if (this.CACHE_ENABLED) {
-        await redis.del(`${CACHE_KEYS.DIAGNOSIS}${id}`);
-        await redis.del(`${CACHE_KEYS.PATIENT_DIAGNOSES}${existing.patientId}`);
-      }
-
-      logger.info('Diagnosis deleted', { diagnosisId: id });
-      return { success: true };
-    } catch (error) {
-      logger.error('Failed to delete diagnosis', { error, id });
-      throw error;
-    }
-  }
 
   // ==================== MEDICAL RECORD SERVICES ====================
 
@@ -473,6 +293,224 @@ export class MedicalService {
     } catch (error) {
       logger.error('Failed to get active prescriptions', { error, patientId });
       throw new Error('Failed to retrieve prescriptions');
+    }
+  }
+  async getDiagnosisById(id: string, clinicId: string) {
+    const cacheKey = `${CACHE_KEYS.DIAGNOSIS}${id}`;
+
+    try {
+      // Try cache first
+      if (this.CACHE_ENABLED) {
+        const cached = await redis.get(cacheKey);
+        if (cached) {
+          logger.debug('Cache hit for diagnosis', { id });
+          return JSON.parse(cached);
+        }
+      }
+
+      // Query repository
+      const diagnosis = await diagnosisRepo.findDiagnosisById(this.db, id);
+
+      if (!diagnosis || diagnosis.patient?.clinicId !== clinicId) {
+        return null;
+      }
+
+      // Cache the result
+      if (this.CACHE_ENABLED && diagnosis) {
+        await redis.setex(cacheKey, CACHE_TTL.DIAGNOSIS, JSON.stringify(diagnosis));
+      }
+
+      return diagnosis;
+    } catch (error) {
+      logger.error('Failed to get diagnosis', { error, id });
+      throw new Error('Failed to retrieve diagnosis');
+    }
+  }
+
+  async getDiagnosesByMedicalRecord(medicalId: string, clinicId: string) {
+    try {
+      // Get the medical record first to verify clinic access
+      const medicalRecord = await medicalRecordRepo.findMedicalRecordById(this.db, medicalId);
+      if (!medicalRecord || medicalRecord.patient?.clinicId !== clinicId) {
+        return [];
+      }
+
+      // Get diagnoses by medical record
+      const diagnoses = await diagnosisRepo.findDiagnosesByMedicalRecord(this.db, medicalId);
+      return diagnoses;
+    } catch (error) {
+      logger.error('Failed to get diagnoses by medical record', { error, medicalId });
+      throw new Error('Failed to retrieve diagnoses');
+    }
+  }
+
+  async getDiagnosesByAppointment(appointmentId: string) {
+    try {
+      const diagnoses = await diagnosisRepo.findDiagnosesByAppointment(this.db, appointmentId);
+      return diagnoses;
+    } catch (error) {
+      logger.error('Failed to get diagnoses by appointment', { error, appointmentId });
+      throw new Error('Failed to retrieve diagnoses');
+    }
+  }
+
+  async getDiagnosesByDoctor(doctorId: string, limit?: number) {
+    try {
+      const diagnoses = await diagnosisRepo.findDiagnosesByDoctor(this.db, doctorId, { limit });
+      return diagnoses;
+    } catch (error) {
+      logger.error('Failed to get diagnoses by doctor', { error, doctorId });
+      throw new Error('Failed to retrieve diagnoses');
+    }
+  }
+
+  async getPatientDiagnoses(
+    patientId: string,
+    clinicId: string,
+    options?: {
+      startDate?: Date;
+      endDate?: Date;
+      type?: string;
+      limit?: number;
+      offset?: number;
+    }
+  ) {
+    try {
+      // Validate patient exists
+      const patient = await validationRepo.checkPatientExists(this.db, patientId, clinicId);
+      if (!patient) {
+        return { diagnoses: [], total: 0 };
+      }
+
+      // Query repository
+      const diagnoses = await diagnosisRepo.findDiagnosesByPatient(this.db, patientId, options);
+      const total = await diagnosisRepo.countDiagnosesByPatient(this.db, patientId);
+
+      return { diagnoses, total };
+    } catch (error) {
+      logger.error('Failed to get patient diagnoses', { error, patientId });
+      throw new Error('Failed to retrieve diagnoses');
+    }
+  }
+
+  async createDiagnosis(data: {
+    patientId: string;
+    doctorId: string;
+    appointmentId?: string | null;
+    clinicId: string;
+    type?: string | null;
+    status: EncounterStatus;
+    prescribedMedications?: string;
+    symptoms: string;
+    diagnosis: string;
+    treatment?: string | null;
+    notes?: string | null;
+    followUpPlan?: string | null;
+    date: Date;
+  }) {
+    try {
+      // Validate entities exist
+      const [patient, medicalRecord] = await Promise.all([
+        validationRepo.checkPatientExists(this.db, data.patientId, data.clinicId),
+        medicalRecordRepo.findMedicalRecordsByPatient(this.db, data.patientId, { limit: 1 })
+      ]);
+
+      if (!patient) {
+        throw new Error('Patient not found');
+      }
+
+      const medicalId = medicalRecord[0]?.id;
+      if (!medicalId) {
+        throw new Error('No medical record found for patient');
+      }
+
+      const now = new Date();
+      const diagnosis = await diagnosisRepo.createDiagnosis(this.db, {
+        id: randomUUID(),
+        ...data,
+        medicalId,
+        createdAt: now,
+        updatedAt: now
+      });
+
+      // Invalidate cache
+      if (this.CACHE_ENABLED) {
+        await redis.del(`${CACHE_KEYS.DIAGNOSIS}${diagnosis.id}`);
+        await redis.del(`${CACHE_KEYS.PATIENT_DIAGNOSES}${data.patientId}`);
+      }
+
+      logger.info('Diagnosis created', { diagnosisId: diagnosis.id, patientId: data.patientId });
+      return diagnosis;
+    } catch (error) {
+      logger.error('Failed to create diagnosis', { error, data });
+      throw error;
+    }
+  }
+
+  async updateDiagnosis(
+    id: string,
+    clinicId: string,
+    data: {
+      diagnosis?: string;
+      type?: string | null;
+      symptoms?: string;
+      treatment?: string | null;
+      notes?: string | null;
+      followUpPlan?: string | null;
+    }
+  ) {
+    try {
+      // Verify ownership
+      const existing = await diagnosisRepo.findDiagnosisById(this.db, id);
+      if (!existing || existing.patient?.clinicId !== clinicId) {
+        throw new Error('Diagnosis not found');
+      }
+
+      const updated = await diagnosisRepo.updateDiagnosis(this.db, id, {
+        ...data,
+        updatedAt: new Date()
+      });
+
+      // Invalidate cache
+      if (this.CACHE_ENABLED) {
+        await redis.del(`${CACHE_KEYS.DIAGNOSIS}${id}`);
+        await redis.del(`${CACHE_KEYS.PATIENT_DIAGNOSES}${existing.patientId}`);
+      }
+
+      logger.info('Diagnosis updated', { diagnosisId: id });
+      return updated;
+    } catch (error) {
+      logger.error('Failed to update diagnosis', { error, id });
+      throw error;
+    }
+  }
+
+  async deleteDiagnosis(id: string, clinicId: string) {
+    try {
+      // Verify ownership
+      const existing = await diagnosisRepo.findDiagnosisById(this.db, id);
+      if (!existing || existing.patient?.clinicId !== clinicId) {
+        throw new Error('Diagnosis not found');
+      }
+
+      const now = new Date();
+      await diagnosisRepo.softDeleteDiagnosis(this.db, id, {
+        isDeleted: true,
+        deletedAt: now,
+        updatedAt: now
+      });
+
+      // Invalidate cache
+      if (this.CACHE_ENABLED) {
+        await redis.del(`${CACHE_KEYS.DIAGNOSIS}${id}`);
+        await redis.del(`${CACHE_KEYS.PATIENT_DIAGNOSES}${existing.patientId}`);
+      }
+
+      logger.info('Diagnosis deleted', { diagnosisId: id });
+      return { success: true };
+    } catch (error) {
+      logger.error('Failed to delete diagnosis', { error, id });
+      throw error;
     }
   }
 

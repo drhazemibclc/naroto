@@ -2,13 +2,13 @@ import type { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'naroto',
-    short_name: 'naroto',
-    description: 'my pwa app',
-    start_url: '/new',
+    name: 'Naroto Pediatric Clinic',
+    short_name: 'Naroto',
+    description: 'Advanced pediatric clinic management system.',
+    start_url: '/dashboard', // Changed from /new to /dashboard
     display: 'standalone',
     background_color: '#ffffff',
-    theme_color: '#000000',
+    theme_color: '#0ea5e9', // Example: a medical blue color
     icons: [
       {
         src: '/favicon/web-app-manifest-192x192.png',
